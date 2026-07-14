@@ -1,5 +1,6 @@
 /* GC3 Repost Engine v2
    Live pool + cross-device state from Supabase (gc3-sermon-library project).
+   Sign-in: email code (Supabase OTP), allowlist enforced server-side.
    Product law: evergreen only, verbatim text, 90d repost / 14d skip cooldowns,
    daily batch of 6 diverse across themes and eras. */
 
@@ -13,12 +14,13 @@ const REPOST_COOLDOWN_DAYS = 90;
 const SKIP_COOLDOWN_DAYS = 14;
 const MAX_PER_YEAR = 1;
 const MAX_PER_THEME = 2;
-const PASS_KEY = 'repost:pass';
+const SESSION_KEY = 'repost:session:v1';
 
 // ---------- types ----------
 interface Post { id: number; year: number; date: string; text: string; n: number; theme: string; }
 interface LogRow { id: number; post_id: number | null; action: 'reposted' | 'skipped' | 'shuffled'; acted_at: string; acted_on: string; edited_text: string | null; }
-interface Data { refreshed_at: string; pool_count: number; pool: Post[]; log: LogRow[]; }
+interface Data { me: { email: string; role: string }; refreshed_at: string; pool_count: number; pool: Post[]; log: LogRow[]; }
+interface Session { access_token: string; refresh_token: string; expires_at: number; email: string; }
 
 // ---------- state ----------
 let data: Data | null = null;
@@ -39,7 +41,6 @@ function daysBetween(a: string, b: string): number {
 function escapeHTML(s: string): string {
   return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
-// deterministic PRNG so every device draws the same batch for the same day
 function mulberry32(seed: number) {
   return () => {
     seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
@@ -61,25 +62,99 @@ function showToast(msg: string) {
   setTimeout(() => t.classList.remove('show'), 1800);
 }
 
-// ---------- api ----------
-async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+// ---------- auth (email code via Supabase OTP, no SDK needed) ----------
+function getSession(): Session | null {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) ?? 'null'); } catch { return null; }
+}
+function setSession(s: Session | null) {
+  if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  else localStorage.removeItem(SESSION_KEY);
+}
+async function authPost(path: string, body: unknown): Promise<Response> {
+  return fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
-    body: JSON.stringify(args),
+    body: JSON.stringify(body),
   });
-  if (!res.ok) {
+}
+async function sendCode(email: string): Promise<void> {
+  const res = await authPost('otp', { email, create_user: true });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.msg ?? 'Could not send the code.');
+}
+async function verifyCode(email: string, code: string): Promise<void> {
+  const res = await authPost('verify', { type: 'email', email, token: code.trim() });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.access_token) throw new Error(body?.msg ?? body?.error_description ?? 'That code did not work.');
+  setSession({
+    access_token: body.access_token,
+    refresh_token: body.refresh_token,
+    expires_at: Math.floor(Date.now() / 1000) + (body.expires_in ?? 3600),
+    email,
+  });
+}
+async function refreshSession(): Promise<boolean> {
+  const s = getSession();
+  if (!s?.refresh_token) return false;
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+    body: JSON.stringify({ refresh_token: s.refresh_token }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.access_token) { setSession(null); return false; }
+  setSession({
+    access_token: body.access_token,
+    refresh_token: body.refresh_token ?? s.refresh_token,
+    expires_at: Math.floor(Date.now() / 1000) + (body.expires_in ?? 3600),
+    email: s.email,
+  });
+  return true;
+}
+async function freshToken(): Promise<string | null> {
+  const s = getSession();
+  if (!s) return null;
+  if (s.expires_at - Math.floor(Date.now() / 1000) < 60) {
+    if (!(await refreshSession())) return null;
+  }
+  return getSession()?.access_token ?? null;
+}
+function signOut() { setSession(null); data = null; renderGate(); }
+
+// magic-link fallback: if the emailed link is clicked and lands here with tokens in the hash
+(function adoptHashSession() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  const at = h.get('access_token'), rt = h.get('refresh_token');
+  if (at && rt) {
+    setSession({ access_token: at, refresh_token: rt, expires_at: Math.floor(Date.now() / 1000) + Number(h.get('expires_in') ?? 3600), email: '' });
+    history.replaceState(null, '', location.pathname);
+  }
+})();
+
+// ---------- api ----------
+class AuthNeeded extends Error {}
+class NotAllowed extends Error {}
+async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await freshToken();
+    if (!token) throw new AuthNeeded();
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
+      body: JSON.stringify(args),
+    });
+    if (res.ok) return res.json() as Promise<T>;
     const body = await res.text();
-    if (res.status === 401 || body.includes('bad passphrase')) throw new Error('bad-pass');
+    if (res.status === 401 && attempt === 0) { await refreshSession(); continue; }
+    if (res.status === 401) throw new AuthNeeded();
+    if (body.includes('not allowed') || res.status === 403) throw new NotAllowed();
     throw new Error(`rpc ${fn}: ${res.status}`);
   }
-  return res.json() as Promise<T>;
+  throw new AuthNeeded();
 }
-const getPass = () => localStorage.getItem(PASS_KEY) ?? '';
-const loadData = () => rpc<Data>('repost_data', { pass: getPass() });
+const loadData = () => rpc<Data>('repost_data', {});
 function logAction(postId: number | null, action: LogRow['action'], editedText: string | null = null) {
   return rpc<number>('repost_act', {
-    pass: getPass(), p_post_id: postId, p_action: action,
+    p_post_id: postId, p_action: action,
     p_acted_on: todayStr(), p_edited_text: editedText,
   });
 }
@@ -121,7 +196,6 @@ function pickDiverseBatch(pool: Post[], seed: number): Post[] {
     perYear.set(p.year, (perYear.get(p.year) ?? 0) + 1);
     perTheme.set(p.theme, (perTheme.get(p.theme) ?? 0) + 1);
   };
-  // pass 1: strict diversity; pass 2 and 3 relax if the pool is thin
   for (const p of shuffled) { if (picked.length >= BATCH_SIZE) break; if (fits(p, MAX_PER_YEAR, MAX_PER_THEME)) take(p); }
   for (const p of shuffled) { if (picked.length >= BATCH_SIZE) break; if (!picked.includes(p) && fits(p, 2, 3)) take(p); }
   for (const p of shuffled) { if (picked.length >= BATCH_SIZE) break; if (!picked.includes(p)) take(p); }
@@ -145,22 +219,78 @@ function todayActions(): Map<number, LogRow> {
 }
 
 // ---------- views ----------
-function renderGate(err = '') {
+function renderGate(msg = '') {
   app.innerHTML = `
   <div class="gate">
     <div class="flame">🔥</div>
     <h2>Repost Engine</h2>
-    <p>Enter the passphrase to open your vault.</p>
-    <input id="pass" type="password" autocomplete="current-password" placeholder="Passphrase" />
-    <button id="enter">Open the vault</button>
-    <div class="err">${escapeHTML(err)}</div>
+    <p>Enter your email and we will send you a sign-in code.</p>
+    <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@godchasers.church" />
+    <button id="send">Email me a code</button>
+    <div class="err">${escapeHTML(msg)}</div>
   </div>
   <div class="toast" id="toast"></div>`;
-  const input = document.getElementById('pass') as HTMLInputElement;
-  const go = () => { localStorage.setItem(PASS_KEY, input.value.trim()); boot(); };
-  document.getElementById('enter')!.addEventListener('click', go);
+  const input = document.getElementById('email') as HTMLInputElement;
+  const go = async () => {
+    const email = input.value.trim().toLowerCase();
+    if (!email.includes('@')) { renderGate('That does not look like an email address.'); return; }
+    (document.getElementById('send') as HTMLButtonElement).disabled = true;
+    try {
+      await sendCode(email);
+      renderCodeStep(email);
+    } catch (e) {
+      renderGate((e as Error).message);
+    }
+  };
+  document.getElementById('send')!.addEventListener('click', go);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
   input.focus();
+}
+
+function renderCodeStep(email: string, msg = '') {
+  app.innerHTML = `
+  <div class="gate">
+    <div class="flame">📬</div>
+    <h2>Check your email</h2>
+    <p>We sent a 6-digit code to <b>${escapeHTML(email)}</b>. Enter it below. If the email shows a sign-in link instead, tapping it works too.</p>
+    <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="10" />
+    <button id="verify">Sign in</button>
+    <div class="err">${escapeHTML(msg)}</div>
+    <p style="margin-top:14px"><a href="#" id="resend" style="color:var(--gold)">Resend code</a> &nbsp;&middot;&nbsp; <a href="#" id="back" style="color:var(--ink-faint)">Different email</a></p>
+  </div>
+  <div class="toast" id="toast"></div>`;
+  const input = document.getElementById('code') as HTMLInputElement;
+  const go = async () => {
+    (document.getElementById('verify') as HTMLButtonElement).disabled = true;
+    try {
+      await verifyCode(email, input.value);
+      boot();
+    } catch (e) {
+      renderCodeStep(email, (e as Error).message);
+    }
+  };
+  document.getElementById('verify')!.addEventListener('click', go);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  document.getElementById('resend')!.addEventListener('click', async e => {
+    e.preventDefault();
+    try { await sendCode(email); showToast('New code sent'); } catch { showToast('Could not resend, wait a minute and try again'); }
+  });
+  document.getElementById('back')!.addEventListener('click', e => { e.preventDefault(); renderGate(); });
+  input.focus();
+}
+
+function renderNotAllowed() {
+  const email = getSession()?.email || data?.me?.email || 'this email';
+  app.innerHTML = `
+  <div class="gate">
+    <div class="flame">🚫</div>
+    <h2>No access yet</h2>
+    <p><b>${escapeHTML(email)}</b> is signed in but is not on the access list for the Repost Engine. Ask PD to add you.</p>
+    <button id="out">Use a different email</button>
+    <div class="err"></div>
+  </div>
+  <div class="toast" id="toast"></div>`;
+  document.getElementById('out')!.addEventListener('click', signOut);
 }
 
 function renderLoading() {
@@ -184,7 +314,7 @@ function renderShell() {
         <div class="stat"><b>${repostedCount}</b><span>Reposted</span></div>
         <div class="stat"><b>${Math.min(...years)}&ndash;${Math.max(...years)}</b><span>Years covered</span></div>
       </div>
-      <div class="sync-note"><b>&#9679; Synced</b> &middot; pool refreshed ${refreshed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, refreshes itself as new posts land &middot; history follows you on every device</div>
+      <div class="sync-note"><b>&#9679; Synced</b> &middot; pool refreshed ${refreshed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} &middot; signed in as ${escapeHTML(data.me.email)}${data.me.role === 'admin' ? ' (admin)' : ''} &middot; <a href="#" id="signout" style="color:var(--ink-faint)">sign out</a></div>
     </header>
     <div class="controls">
       <div class="tabbar">
@@ -200,6 +330,7 @@ function renderShell() {
   </div>
   <div class="toast" id="toast"></div>`;
 
+  document.getElementById('signout')!.addEventListener('click', e => { e.preventDefault(); signOut(); });
   document.getElementById('tab-today')!.addEventListener('click', () => { currentTab = 'today'; renderShell(); });
   document.getElementById('tab-history')!.addEventListener('click', () => { currentTab = 'history'; renderShell(); });
   document.getElementById('tag-filter')!.addEventListener('change', e => {
@@ -320,17 +451,16 @@ function renderHistory() {
 
 // ---------- boot ----------
 async function boot() {
-  if (!getPass()) { renderGate(); return; }
+  if (!getSession()) { renderGate(); return; }
   renderLoading();
   try {
     data = await loadData();
     computeBatch();
     renderShell();
   } catch (e) {
-    if ((e as Error).message === 'bad-pass') {
-      localStorage.removeItem(PASS_KEY);
-      renderGate('That passphrase did not match. Try again.');
-    } else {
+    if (e instanceof AuthNeeded) { setSession(null); renderGate('Your session expired. Sign in again.'); }
+    else if (e instanceof NotAllowed) { renderNotAllowed(); }
+    else {
       app.innerHTML = `<div class="empty-state"><div class="big">&#9888;&#65039;</div>Could not reach the vault. Check your connection.<br><br><button class="btn primary" id="retry">Retry</button></div>`;
       document.getElementById('retry')!.addEventListener('click', boot);
     }

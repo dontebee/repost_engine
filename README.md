@@ -32,10 +32,19 @@ navigation or team features, Svelte is the upgrade path.
   the tables carry RLS with no anon policies at all. The Supabase publishable
   key alone reads nothing.
 
-**Auth:** shared passphrase, checked server-side on every call (the handoff
-asked for a simple gate, not an identity system). The browser remembers it in
-localStorage. To change it:
-`update repost_meta set pass_hash = encode(extensions.digest('newpass','sha256'),'hex') where id = 1;`
+**Auth: email sign-in code (Supabase OTP) + server-side allowlist.**
+Users enter their email, receive a 6-digit code, and sign in. The RPCs are
+granted to `authenticated` only and verify the caller's email against the
+`repost_users` table on every call, so only allowlisted people can read or
+write anything. Current allowlist: dontebee@gmail.com (admin),
+latwanna@godchasers.church, tiffany@godchasers.church. To add someone:
+`insert into repost_users (email, role) values ('name@example.com', 'user');`
+
+One-time project setting: the sign-in email must contain the code. In the
+Supabase dashboard, Authentication > Email Templates > Magic Link, make sure
+the body includes `{{ .Token }}`, for example:
+`<p>Your Repost Engine sign-in code: <b>{{ .Token }}</b></p>`
+(The emailed magic link also works as a fallback if tapped on the same device.)
 
 ## Product law (enforced)
 
