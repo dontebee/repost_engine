@@ -65,6 +65,24 @@
   #close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;
     border:1px solid var(--line);background:transparent;color:var(--dim);font-size:16px;cursor:pointer}
   #close:hover{color:var(--ink)}
+  /* answer card (ask mode) */
+  #answer{pointer-events:auto;display:none;margin-top:16px;width:min(680px,92vw);
+    max-height:44vh;overflow-y:auto;padding:20px 24px;border-radius:18px;
+    background:rgba(11,16,26,.82);border:1px solid rgba(240,180,41,.22);
+    backdrop-filter:blur(14px);box-shadow:0 12px 48px rgba(0,0,0,.5),0 0 60px rgba(240,180,41,.05)}
+  #answer.show{display:block;animation:rise .4s cubic-bezier(.2,.9,.25,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  #atext{font-size:14.5px;line-height:1.8;color:#dde4ef;white-space:pre-wrap}
+  #atext .cursor{display:inline-block;width:8px;background:var(--sermon);animation:pulse .8s infinite}
+  #answer::-webkit-scrollbar{width:8px}
+  #answer::-webkit-scrollbar-thumb{background:rgba(139,148,167,.25);border-radius:4px}
+  #asrcs{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+  .srcpill{display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;
+    font-size:11px;color:var(--dim);border:1px solid var(--line);cursor:pointer;
+    background:rgba(13,18,28,.6);transition:all .15s;max-width:240px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .srcpill:hover{color:var(--ink);border-color:rgba(232,236,244,.4)}
+  .srcpill .dot{width:6px;height:6px;border-radius:50%;flex:none}
   #loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;display:none;
     font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--sermon);
     text-shadow:0 0 24px rgba(240,180,41,.5);pointer-events:none}
@@ -81,14 +99,19 @@
   <h1>Second <em>Brain</em></h1>
   <div class="sub">Donte Banks · GodChasers</div>
   <div class="searchwrap">
-    <input id="q" placeholder="Ask your whole life of writing… e.g. hidden seasons, fathers, favor" autocomplete="off"/>
-    <button id="go">Search</button>
+    <input id="q" placeholder="Ask me anything you've ever written… I remember all of it" autocomplete="off"/>
+    <button id="go">Ask</button>
   </div>
   <div class="modes">
-    <label><input type="radio" name="mode" value="meaning" checked> by meaning</label>
+    <label><input type="radio" name="mode" value="ask" checked> ask me</label>
+    <label><input type="radio" name="mode" value="meaning"> explore by meaning</label>
     <label><input type="radio" name="mode" value="exact"> exact words</label>
   </div>
   <div class="chips" id="chips"></div>
+  <div id="answer">
+    <div id="atext"></div>
+    <div id="asrcs"></div>
+  </div>
 </header>
 
 <div id="loading">firing synapses</div>
@@ -261,6 +284,10 @@ document.getElementById("close").onclick=()=>document.getElementById("panel").cl
 /* ---------- chips ---------- */
 const chipOn={sermon:true,facebook:true,onenote:true,email:true,gdrive:true,youtube:true,note:true};
 const chipsEl=document.getElementById("chips");
+document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("change",()=>{
+  document.getElementById("go").textContent=
+    document.querySelector("input[name=mode]:checked").value==="ask"?"Ask":"Search";
+}));
 [["sermon","Sermons"],["facebook","Facebook"],["onenote","OneNote"],["email","Email"],
  ["gdrive","Drive"],["youtube","YouTube"]].forEach(([k,label])=>{
   const c=document.createElement("div");c.className="chip on";
@@ -269,8 +296,47 @@ const chipsEl=document.getElementById("chips");
   chipsEl.appendChild(c);
 });
 
-/* ---------- search ---------- */
+/* ---------- search + ask ---------- */
 const loading=document.getElementById("loading"),hint=document.getElementById("hint");
+const answerEl=document.getElementById("answer"),atext=document.getElementById("atext"),
+      asrcs=document.getElementById("asrcs");
+let hist=[];   // rolling conversation for follow-up questions
+
+function typewrite(el,text){
+  el.innerHTML='<span class="cursor">&nbsp;</span>';
+  let i=0;const cur=el.querySelector(".cursor");
+  (function tick(){
+    const chunk=text.slice(i,i+=3);
+    cur.insertAdjacentText("beforebegin",chunk);
+    if(i<text.length)setTimeout(tick,12);else cur.remove();
+  })();
+}
+
+async function ask(q){
+  loading.textContent="consulting memory";
+  const r=await fetch(`${SB}/functions/v1/brain-chat`,{method:"POST",
+    headers:{apikey:KEY,Authorization:`Bearer ${KEY}`,"Content-Type":"application/json"},
+    body:JSON.stringify({question:q,history:hist})});
+  if(!r.ok) throw new Error((await r.text()).slice(0,200));
+  const j=await r.json();
+  hist.push({role:"user",content:q},{role:"assistant",content:j.answer});
+  hist=hist.slice(-6);
+  answerEl.classList.add("show");
+  typewrite(atext,j.answer);
+  asrcs.innerHTML="";
+  const seen=new Set();
+  (j.sources||[]).forEach(s=>{
+    if(seen.has(s.ref))return;seen.add(s.ref);
+    const k=srcKey(s.source),p=document.createElement("div");
+    p.className="srcpill";
+    p.innerHTML=`<span class="dot" style="background:${COLORS[k]}"></span>${(s.date||"").slice(0,4)} · ${s.title}`;
+    p.onclick=()=>openPanel({source:s.source,title:s.title,date:s.date,ref:s.ref,sim:s.sim||0});
+    asrcs.appendChild(p);
+  });
+  buildGraph({nodes:(j.sources||[]).map((s,i)=>({id:i+1,source:s.source,title:s.title,
+    snippet:"",date:s.date,ref:s.ref,sim:s.sim||0.5})),edges:[]});
+}
+
 async function search(){
   const q=document.getElementById("q").value.trim();
   if(!q)return;
@@ -278,10 +344,14 @@ async function search(){
   document.getElementById("panel").classList.remove("open");
   try{
     const m=document.querySelector("input[name=mode]:checked").value;
-    if(m==="meaning"){
+    if(m==="ask"){
+      await ask(q);
+    }else if(m==="meaning"){
+      answerEl.classList.remove("show");
       const g=await rpc("brain_graph",{query:q,match_count:18});
       buildGraph(g);
     }else{
+      answerEl.classList.remove("show");
       const rows=await rpc("brain_keyword",{query:q,match_count:18});
       buildGraph({nodes:rows.map((r,i)=>({id:i+1,source:r.source,title:r.title,
         snippet:r.snippet,date:r.item_date,ref:r.ref,
@@ -289,6 +359,7 @@ async function search(){
     }
   }catch(e){alert("Search failed: "+e.message);}
   loading.classList.remove("show");
+  loading.textContent="firing synapses";
 }
 document.getElementById("go").onclick=search;
 document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")search();});
