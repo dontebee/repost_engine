@@ -243,3 +243,68 @@ textarea.edit-box{
 .pill.gold{ background: linear-gradient(90deg, rgba(216,166,75,0.25), rgba(227,100,20,0.18)); }
 .count{ font-size: 11.5px; color: var(--ink-faint); margin-left:auto; }
 .warn{ font-size: 11.5px; font-weight:700; color: var(--flame-2); margin-left:auto; }
+
+/* ---------- v4: PICKS / HISTORY ---------- */
+.from-line{ font-size: 12px; color: var(--ink-faint); font-style: italic; border-top: 1px dashed var(--line); padding-top: 10px; }
+.gen-input.slim{ min-height: 0; height: 46px; padding: 10px 14px; }
+.hist-bar{ display:flex; gap: 8px; align-items: stretch; }
+.hist-bar .gen-input{ margin-top: 0; flex: 1; }
+.card-actions.slim{ margin-top: 10px; }
+.card-actions.slim button{ flex: 0 0 auto; min-width: 90px; }
+.history-item .h-meta b{ color: var(--gold); }
+
+/* ---------- OUTLINE BUILDER ---------- */
+.o-config{ background: var(--bg-card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 20px; margin-bottom: 22px; }
+.o-field{ margin-bottom: 20px; }
+.o-eyebrow{ font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+.o-eyebrow .opt{ color: var(--ink-faint); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.o-fmt{ display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.o-fmt button{ text-align:left; cursor:pointer; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; color: var(--ink); font: inherit; }
+.o-fmt button:hover{ border-color: var(--gold); }
+.o-fmt button.on{ background: linear-gradient(90deg, var(--flame-1), var(--flame-2)); border-color: transparent; }
+.o-fmt .fl{ font-weight: 700; font-size: 14px; display:block; }
+.o-fmt .fn{ font-size: 11px; color: var(--ink-faint); }
+.o-fmt button.on .fn{ color: rgba(255,255,255,0.75); }
+.o-chips{ display:flex; flex-wrap: wrap; gap: 8px; }
+.chip{ font: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border-radius: 999px; cursor: pointer; background: var(--bg); border: 1px solid var(--line); color: var(--ink-dim); }
+.chip:hover{ border-color: var(--gold); }
+.chip.on{ background: linear-gradient(90deg, var(--flame-1), var(--flame-2)); border-color: transparent; color: #fff; }
+.o-seg{ display:flex; gap: 8px; }
+.o-seg button{ flex:1; cursor:pointer; font: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 6px; color: var(--ink-dim); display:flex; flex-direction:column; align-items:center; gap: 2px; }
+.o-seg button.on{ background: linear-gradient(90deg, var(--flame-1), var(--flame-2)); border-color: transparent; color:#fff; }
+.o-seg .lab{ font-size: 13.5px; font-weight: 600; }
+.o-seg .note{ font-size: 11px; opacity: .7; }
+.o-hint{ font-size: 12.5px; color: var(--ink-faint); margin-top: 9px; text-align: center; font-style: italic; }
+.o-tools{ display:flex; gap: 8px; margin-bottom: 16px; }
+.o-doc{ background: var(--bg-card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.o-slate{ background: #100C0A; padding: 34px 30px 30px; border-bottom: 1px solid var(--line); }
+.o-kicker{ font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+.o-title{ margin: 0; font-size: 32px; font-weight: 800; line-height: 1.06; letter-spacing: -0.01em; color: var(--ink); }
+.o-rule{ width: 56px; height: 3px; background: var(--flame-2); margin: 18px 0 14px; }
+.o-ref{ font-family: Georgia, serif; font-style: italic; font-size: 17px; color: var(--ink-dim); }
+.o-body{ padding: 28px 30px 34px; }
+@media (max-width: 720px){ .o-slate{ padding: 26px 20px 24px; } .o-title{ font-size: 25px; } .o-body{ padding: 22px 20px 26px; } }
+.o-sec{ margin-bottom: 28px; }
+.o-sec-lab{ font-size: 11.5px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--flame-2); margin-bottom: 10px; }
+.o-prose{ font-family: Georgia, serif; font-size: 16.5px; line-height: 1.7; color: var(--ink-dim); }
+.o-prose p{ margin: 0 0 12px; }
+.o-prose p:last-child{ margin-bottom: 0; }
+.o-idea{ background: rgba(216,166,75,0.08); border-left: 4px solid var(--flame-2); border-radius: 0 10px 10px 0; padding: 16px 20px; font-family: Georgia, serif; font-size: 19px; line-height: 1.45; color: var(--ink); }
+.o-sticky{ border-left: 3px solid var(--gold); background: rgba(216,166,75,0.08); padding: 10px 16px; border-radius: 0 8px 8px 0; font-family: Georgia, serif; font-style: italic; font-size: 17px; color: var(--ink); }
+.o-stmts{ list-style: none; margin: 0; padding: 0; }
+.o-stmts li{ font-family: Georgia, serif; font-size: 16.5px; line-height: 1.5; color: var(--ink); padding: 9px 0 9px 22px; position: relative; border-bottom: 1px solid var(--line); }
+.o-stmts li:last-child{ border-bottom: none; }
+.o-stmts li::before{ content:""; position:absolute; left:0; top: 17px; width: 8px; height: 8px; background: var(--flame-2); border-radius: 50%; }
+.o-steps{ list-style: none; margin: 0; padding: 0; counter-reset: s; }
+.o-steps li{ font-family: Georgia, serif; font-size: 16px; line-height: 1.6; color: var(--ink-dim); padding: 10px 0 10px 40px; position: relative; counter-increment: s; }
+.o-steps li::before{ content: counter(s); position:absolute; left:0; top: 10px; width: 26px; height: 26px; border-radius: 50%; background: var(--flame-1); color:#fff; font-family: inherit; font-weight: 700; font-size: 12px; display:flex; align-items:center; justify-content:center; }
+.o-point{ border-top: 1px solid var(--line); padding-top: 22px; margin-top: 22px; }
+.o-point:first-child{ border-top: none; padding-top: 0; margin-top: 0; }
+.o-point-head{ display:flex; gap: 14px; align-items: baseline; margin-bottom: 12px; }
+.o-point-num{ font-size: 20px; font-weight: 800; color: var(--flame-2); }
+.o-point-title{ font-size: 21px; font-weight: 800; line-height: 1.15; color: var(--ink); }
+.o-sub{ margin-bottom: 13px; }
+.o-sub-lab{ font-size: 10.5px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 5px; }
+.o-group{ border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+.o-group-head{ font-size: 17px; font-weight: 800; color: var(--ink); padding-bottom: 10px; margin-bottom: 14px; border-bottom: 2px solid var(--flame-2); }
+.o-footnote{ text-align:center; font-family: Georgia, serif; font-style: italic; color: var(--ink-faint); font-size: 13.5px; margin-top: 18px; }
