@@ -1,0 +1,55 @@
+/* Outline Builder theme: PD's study. Calm warm paper, ink, muted sage + soft gold.
+   Loads AFTER style.css on the outline page only, overriding the ember palette. */
+
+:root{
+  --bg: #EFEAE0;
+  --bg-raised: #F6F2EA;
+  --bg-card: #FBF8F1;
+  --line: #DCD3C2;
+  --ink: #26221B;
+  --ink-dim: #5C554A;
+  --ink-faint: #948A78;
+  --flame-1: #48685A;   /* deep sage stands in for the ember gradient */
+  --flame-2: #5E7F6E;
+  --flame-3: #37524699;
+  --gold: #9A7B3F;
+  --good: #5E7F52;
+}
+
+/* Header: quiet paper, no fire glow. */
+header{
+  background: var(--bg-raised);
+  border-color: var(--line);
+}
+header::after{ background: linear-gradient(90deg, var(--flame-1), var(--gold)); height: 3px; }
+
+/* The document slate: deep calm green-slate instead of near-black ember. */
+.o-slate{ background: #2A3A33; border-bottom-color: #22302B; }
+.o-slate .o-title{ color: #F3EFE6; }
+.o-slate .o-ref{ color: #CFC8B8; }
+.o-kicker{ color: #C9A65C; }
+.o-rule{ background: #C9A65C; }
+
+/* Accents that were fire-orange settle into sage and gold. */
+.o-sec-lab{ color: var(--flame-1); }
+.o-idea{ background: rgba(72,104,90,0.08); border-left-color: var(--flame-1); }
+.o-sticky{ background: rgba(154,123,63,0.10); border-left-color: var(--gold); }
+.o-stmts li::before{ background: var(--flame-1); }
+.o-steps li::before{ background: var(--flame-1); }
+.o-point-num{ color: var(--flame-1); }
+.o-group-head{ border-bottom-color: var(--flame-1); }
+.warn{ color: #A8552F; }
+
+/* Inputs and cards read as paper, focus rings go sage. */
+.gen-input{ background: #FFFFFF; border-color: var(--line); color: var(--ink); }
+.gen-input:focus{ border-color: var(--flame-1); }
+.o-fmt button, .chip, .o-seg button{ background: #FFFFFF; }
+.o-config, .o-doc{ box-shadow: 0 1px 3px rgba(38,34,27,0.06); }
+
+/* Gate + loading + toast keep legible on paper. */
+.gate{ background: var(--bg-raised); }
+.gate input{ background: #FFFFFF; }
+.gate .err{ color: #A8552F; }
+.toast{ background: var(--bg-raised); border-color: var(--gold); color: var(--ink); box-shadow: 0 10px 30px rgba(38,34,27,0.18); }
+
+::-webkit-scrollbar-thumb{ background: var(--line); }

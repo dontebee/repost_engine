@@ -5,6 +5,7 @@
    edge function (mode: 'outline'), rendered in the ember style. */
 
 import './style.css';
+import './outline.css'; // calm study palette, overrides the ember theme on this page only
 
 const SUPABASE_URL = 'https://eibrykdamgyoylnqknao.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_nbdBW4joMJcL9TqYG2EKyg_L7qDSKI1';
@@ -345,7 +346,7 @@ async function build() {
 function renderResult() {
   const box = document.getElementById('result');
   if (!box) return;
-  if (busy) { box.innerHTML = `<div class="loading"><div class="flame">🔥</div>Searching the text… shaping the structure…</div>`; return; }
+  if (busy) { box.innerHTML = `<div class="loading"><div class="flame">📖</div>Searching the text… shaping the structure…</div>`; return; }
   if (!doc) return;
   const topicLine = [...topics, ...customTopic.split(',').map(t => t.trim()).filter(Boolean)].join(' · ') || 'Message';
   box.innerHTML = `
@@ -378,7 +379,7 @@ async function boot() {
     document.getElementById('go')!.addEventListener('click', () => { location.href = '/'; });
     return;
   }
-  app.innerHTML = `<div class="loading"><div class="flame">🔥</div>Checking the study door…</div>`;
+  app.innerHTML = `<div class="loading"><div class="flame">📖</div>Checking the study door…</div>`;
   try {
     const token = await freshToken();
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/repost_current_user`, {
