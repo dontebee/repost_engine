@@ -206,3 +206,40 @@ textarea.edit-box{
 
 ::-webkit-scrollbar{ width:6px; }
 ::-webkit-scrollbar-thumb{ background: var(--line); border-radius: 10px; }
+
+/* ---------- v3: CHANNEL BAR ---------- */
+.channelbar{ display:flex; align-items:center; gap:8px; flex-wrap: wrap; margin-top: 16px; }
+.channelbar button{
+  font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  padding: 9px 16px; border-radius: 999px; min-height: 40px;
+  background: var(--bg); color: var(--ink-dim); border: 1px solid var(--line);
+}
+.channelbar button:hover{ border-color: var(--gold); }
+.channelbar button.active{ background: linear-gradient(90deg, var(--flame-1), var(--flame-2)); color:#fff; border:none; }
+.channel-note{ font-size: 11.5px; color: var(--ink-faint); margin-left: 4px; }
+.channel-note b{ color: var(--gold); }
+
+/* ---------- v3: CREATE NEW POST ---------- */
+.create{ display:flex; flex-direction: column; }
+.seg{ display:flex; gap:6px; background: var(--bg-raised); border:1px solid var(--line); border-radius: 12px; padding: 4px; align-self: flex-start; }
+.seg button{
+  border:none; background: transparent; color: var(--ink-dim); font: inherit; font-weight:600;
+  font-size: 13px; padding: 9px 16px; border-radius: 9px; cursor:pointer; min-height: 40px;
+}
+.seg button.on{ background: linear-gradient(90deg, var(--flame-1), var(--flame-2)); color:#fff; }
+.gen-input{
+  width:100%; min-height: 150px; margin-top: 12px; font: inherit; font-size: 15px; line-height:1.55;
+  background: var(--bg-card); color: var(--ink); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px; resize: vertical;
+}
+.gen-input:focus{ outline:none; border-color: var(--gold); }
+.btn.block{ display:block; width:100%; padding: 14px; font-size: 15px; margin-top: 12px; }
+.section-lab{
+  font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--gold); margin: 26px 0 12px;
+}
+.card.draft{ border-color: rgba(216,166,75,0.35); }
+.card-text.plain{ font-style: normal; font-family: inherit; font-size: 15px; }
+.pill.gold{ background: linear-gradient(90deg, rgba(216,166,75,0.25), rgba(227,100,20,0.18)); }
+.count{ font-size: 11.5px; color: var(--ink-faint); margin-left:auto; }
+.warn{ font-size: 11.5px; font-weight:700; color: var(--flame-2); margin-left:auto; }
