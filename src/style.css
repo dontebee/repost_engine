@@ -264,6 +264,12 @@ textarea.edit-box{
 .card-actions.slim{ margin-top: 10px; }
 .card-actions.slim button{ flex: 0 0 auto; min-width: 90px; }
 .history-item .h-meta b{ color: var(--gold); }
+.src-tag{
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
+  padding: 2px 8px; border-radius: 999px; margin-right: 6px;
+  background: rgba(107,143,92,0.15); color: var(--good); border: 1px solid rgba(107,143,92,0.35);
+}
+.src-tag.tl{ background: rgba(216,166,75,0.14); color: var(--gold); border-color: rgba(216,166,75,0.4); }
 
 /* ---------- OUTLINE BUILDER ---------- */
 .o-config{ background: var(--bg-card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 20px; margin-bottom: 22px; }
