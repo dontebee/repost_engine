@@ -105,7 +105,15 @@ async function authPost(path: string, body: unknown): Promise<Response> {
   });
 }
 async function sendCode(email: string): Promise<void> {
-  const res = await authPost('otp', { email, create_user: true });
+  // The Supabase project is shared with GrowthTrack, so without an explicit
+  // redirect_to the emailed magic link falls back to the project Site URL
+  // (GrowthTrack). Point it back to this app. The repost origin must also be on
+  // the Auth redirect allow-list for Supabase to honor this.
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/otp?redirect_to=${encodeURIComponent(location.origin)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+    body: JSON.stringify({ email, create_user: true }),
+  });
   if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.msg ?? 'Could not send the code.');
 }
 async function verifyCode(email: string, code: string): Promise<void> {
