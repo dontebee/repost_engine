@@ -9,19 +9,19 @@
 <style>
   :root{
     --bg:#06090f; --ink:#e8ecf4; --dim:#8b94a7; --line:rgba(139,148,167,.16);
-    --sermon:#f0b429; --facebook:#5b9bd9; --onenote:#a97ee8; --email:#4ad18a;
-    --gdrive:#35c9c0; --youtube:#e8756a; --note:#c9d16e;
+    --sermon:#f0b429; --facebook:#e07070; --onenote:#a97ee8; --email:#4ad18a;
+    --gdrive:#35c9c0; --youtube:#5b9bd9; --note:#c9d16e;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;overflow:hidden}
   #sky{position:fixed;inset:0;display:block}
   .vignette{position:fixed;inset:0;pointer-events:none;
-    background:radial-gradient(ellipse at 50% 42%,transparent 0%,transparent 55%,rgba(3,5,9,.85) 100%)}
+    background:radial-gradient(ellipse at 50% 46%,transparent 0%,transparent 60%,rgba(3,5,9,.8) 100%)}
   header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;flex-direction:column;
     align-items:center;padding:26px 16px 0;pointer-events:none}
   h1{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(26px,4vw,40px);
-    letter-spacing:.06em}
+    letter-spacing:.06em;text-shadow:0 2px 24px rgba(3,5,9,.9)}
   h1 em{font-style:italic;color:var(--sermon)}
   .sub{margin-top:2px;font-size:11.5px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim)}
   .searchwrap{pointer-events:auto;margin-top:18px;width:min(680px,92vw);position:relative}
@@ -49,7 +49,7 @@
   /* answer card (ask mode) */
   #answer{pointer-events:auto;display:none;margin-top:16px;width:min(680px,92vw);
     max-height:44vh;overflow-y:auto;padding:20px 24px;border-radius:18px;
-    background:rgba(11,16,26,.82);border:1px solid rgba(240,180,41,.22);
+    background:rgba(11,16,26,.85);border:1px solid rgba(240,180,41,.22);
     backdrop-filter:blur(14px);box-shadow:0 12px 48px rgba(0,0,0,.5),0 0 60px rgba(240,180,41,.05)}
   #answer.show{display:block;animation:rise .4s cubic-bezier(.2,.9,.25,1)}
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -64,11 +64,30 @@
     overflow:hidden;text-overflow:ellipsis}
   .srcpill:hover{color:var(--ink);border-color:rgba(232,236,244,.4)}
   .srcpill .dot{width:6px;height:6px;border-radius:50%;flex:none}
-  #loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;display:none;
+  #loading{position:fixed;left:50%;top:64%;transform:translate(-50%,-50%);z-index:6;display:none;
     font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--sermon);
     text-shadow:0 0 24px rgba(240,180,41,.5);pointer-events:none}
   #loading.show{display:block;animation:pulse 1.2s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+  /* reading panel */
+  #panel{position:fixed;top:0;right:0;bottom:0;width:min(520px,94vw);z-index:9;
+    background:rgba(9,13,21,.94);backdrop-filter:blur(18px);border-left:1px solid var(--line);
+    transform:translateX(103%);transition:transform .38s cubic-bezier(.2,.9,.25,1);
+    display:flex;flex-direction:column}
+  #panel.open{transform:translateX(0)}
+  .phead{padding:22px 26px 16px;border-bottom:1px solid var(--line)}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--dim)}
+  .badge .dot{width:8px;height:8px;border-radius:50%}
+  .ptitle{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin-top:10px;line-height:1.25}
+  .pmeta{margin-top:6px;font-size:12px;color:var(--dim)}
+  #pbody{padding:22px 26px;overflow-y:auto;flex:1;font-size:14.5px;line-height:1.75;color:#cdd5e1;
+    white-space:pre-wrap;word-wrap:break-word}
+  #pbody::-webkit-scrollbar{width:8px}
+  #pbody::-webkit-scrollbar-thumb{background:rgba(139,148,167,.25);border-radius:4px}
+  #close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;
+    border:1px solid var(--line);background:transparent;color:var(--dim);font-size:16px;cursor:pointer}
+  #close:hover{color:var(--ink)}
   @media (max-width:640px){ h1{font-size:24px} .sub{letter-spacing:.2em} }
 </style>
 </head>
@@ -95,8 +114,8 @@
   </div>
 </header>
 
-<div id="loading">firing synapses</div>
-<div id="hint">17 years of sermons, posts, and notes — one living mind. Ask it something.</div>
+<div id="loading">searching memories</div>
+<div id="hint">A living map of 17 years of your words. Scroll to zoom, drag to wander, hover to see connections, click to read.</div>
 <div id="stats">…</div>
 
 <aside id="panel">
@@ -108,35 +127,16 @@
   </div>
   <div id="pbody"></div>
 </aside>
-<style>
-  /* reading panel */
-  #panel{position:fixed;top:0;right:0;bottom:0;width:min(520px,94vw);z-index:9;
-    background:rgba(9,13,21,.94);backdrop-filter:blur(18px);border-left:1px solid var(--line);
-    transform:translateX(103%);transition:transform .38s cubic-bezier(.2,.9,.25,1);
-    display:flex;flex-direction:column}
-  #panel.open{transform:translateX(0)}
-  .phead{padding:22px 26px 16px;border-bottom:1px solid var(--line)}
-  .badge{display:inline-flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.22em;
-    text-transform:uppercase;color:var(--dim)}
-  .badge .dot{width:8px;height:8px;border-radius:50%}
-  .ptitle{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin-top:10px;line-height:1.25}
-  .pmeta{margin-top:6px;font-size:12px;color:var(--dim)}
-  #pbody{padding:22px 26px;overflow-y:auto;flex:1;font-size:14.5px;line-height:1.75;color:#cdd5e1;
-    white-space:pre-wrap;word-wrap:break-word}
-  #pbody::-webkit-scrollbar{width:8px}
-  #pbody::-webkit-scrollbar-thumb{background:rgba(139,148,167,.25);border-radius:4px}
-  #close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;
-    border:1px solid var(--line);background:transparent;color:var(--dim);font-size:16px;cursor:pointer}
-  #close:hover{color:var(--ink)}
-</style>
 
 <script>
 const SB="https://eibrykdamgyoylnqknao.supabase.co";
 const KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVpYnJ5a2RhbWd5b3lsbnFrbmFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MTI1MjQsImV4cCI6MjA5Nzk4ODUyNH0.TXXVgPuoUJUjt4AIVZeLEq1qx3scGKYDdz04HAUbNcY";
-const COLORS={sermon:"#f0b429",facebook:"#5b9bd9",onenote:"#a97ee8",email:"#4ad18a",
-              gdrive:"#35c9c0",youtube:"#e8756a",note:"#c9d16e"};
+const COLORS={sermon:"#f0b429",facebook:"#e07070",onenote:"#a97ee8",email:"#4ad18a",
+              gdrive:"#35c9c0",youtube:"#5b9bd9",note:"#c9d16e"};
 const srcKey=s=>{s=(s||"").toLowerCase();
   for(const k of Object.keys(COLORS)) if(s.startsWith(k)) return k; return "note";};
+const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);
+  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;};
 
 async function rpc(fn,args){
   const r=await fetch(`${SB}/rest/v1/rpc/${fn}`,{method:"POST",
@@ -147,65 +147,89 @@ async function rpc(fn,args){
 }
 
 /* ============================================================
-   CANVAS — Obsidian-style living constellation
-   A permanent web of fine nodes in soft source-colored clusters.
-   "Thinking" sends signal waves hop-by-hop through the links.
-   Results dim the web and draw their own graph on top.
+   THE GRAPH — a real Obsidian-style map of PD's actual memories.
+   Real titles, size by connections, hover lights a neighborhood,
+   scroll zooms, drag pans, nodes can be grabbed, click to read.
+   While the AI thinks, signal waves travel the links.
    ============================================================ */
 const cv=document.getElementById("sky"),cx=cv.getContext("2d");
 let W,H,DPR=Math.min(devicePixelRatio||1,2);
-const CY=()=>H*0.56;
-let mode="idle",thinking=false,hover=null,queryLabel="";
-let nodes=[],edges=[],pulses=[];          // result graph (foreground)
-
 function size(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;
-  cv.style.width=W+"px";cv.style.height=H+"px";cx.setTransform(DPR,0,0,DPR,0,0);
-  buildConstellation();}
-addEventListener("resize",size);
+  cv.style.width=W+"px";cv.style.height=H+"px";}
+size();addEventListener("resize",()=>{size();});
 
-/* ---------- ambient constellation ---------- */
-const bg={nodes:[],edges:[],adj:[],anchors:[]};
-let waves=[],lastWave=0;
-const gauss=()=>(Math.random()+Math.random()+Math.random()-1.5)/1.5;
-const hex=(h,a)=>{const n=parseInt(h.slice(1),16);
-  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;};
+let mode="idle",thinking=false;
+let nodes=[],edges=[],pulses=[],hover=null,queryLabel="";   // result graph
+const view={x:0,y:0,k:1};
+const toScreen=(x,y)=>[x*view.k+view.x, y*view.k+view.y];
+const toWorld =(x,y)=>[(x-view.x)/view.k,(y-view.y)/view.k];
 
-function buildConstellation(){
-  bg.nodes=[];bg.edges=[];bg.adj=[];bg.anchors=[];waves=[];
-  const keys=Object.keys(COLORS),K=6;
-  const N=Math.round(Math.min(200,Math.max(110,(W*H)/8200)));
-  for(let c=0;c<K;c++){
-    const ang=(c/K)*Math.PI*2+0.35;
-    bg.anchors.push({ang,orbR:Math.min(W,H)*(0.20+((c*97)%23)/230),
-      sp:0.00045*((c%2)?1:-1)*(0.7+((c*53)%29)/29),
-      wob:Math.random()*Math.PI*2,c:COLORS[keys[c%keys.length]],x:0,y:0});
+/* ---------- the memory web ---------- */
+const bg={nodes:[],edges:[],adj:[]};
+let bgHover=-1,bgNbr=new Set(),dragNode=-1,panning=false,px=0,py=0;
+let waves=[],lastWave=0,bornBase=0;
+
+function buildWeb(rows){
+  bg.nodes=[];bg.edges=[];bg.adj=[];waves=[];
+  bornBase=performance.now();
+  // sub-clusters: split each source into pockets so the map spreads organically
+  const bySrc={};
+  rows.forEach(r=>{(bySrc[srcKey(r.source)]??=[]).push(r);});
+  const anchors=[];
+  Object.entries(bySrc).forEach(([k,list])=>{
+    const pockets=Math.max(1,Math.round(list.length/34));
+    for(let p=0;p<pockets;p++) anchors.push({k,items:[]});
+    list.forEach((r,i)=>anchors[anchors.length-pockets+(i%pockets)].items.push(r));
+  });
+  const M=anchors.length;
+  anchors.forEach((a,i)=>{
+    const ang=(i/M)*Math.PI*2+((i*137)%100)/159;
+    const R=Math.min(W,H)*(0.16+((i*61)%37)/120);
+    a.x=W/2+Math.cos(ang)*R*1.35;
+    a.y=H*0.54+Math.sin(ang)*R*0.9;
+  });
+  // build each pocket with preferential attachment -> natural hubs + leaves
+  let id=0;
+  const addEdge=(i,j)=>{if(i!==j)bg.edges.push({i:Math.min(i,j),j:Math.max(i,j)});};
+  anchors.forEach(a=>{
+    const local=[];
+    a.items.forEach(r=>{
+      const n={id:id++,x:a.x+(Math.random()-.5)*30,y:a.y+(Math.random()-.5)*30,
+        vx:0,vy:0,k:a.k,deg:0,glow:0,born:0,
+        d:{source:r.source,title:r.title,date:r.item_date,ref:r.ref}};
+      bg.nodes.push(n);
+      if(local.length){
+        const pick=()=>{ // degree-weighted target: hubs attract
+          let tot=0;local.forEach(m=>tot+=m.deg+0.6);
+          let t=Math.random()*tot;
+          for(const m of local){t-=m.deg+0.6;if(t<=0)return m;}
+          return local[local.length-1];};
+        const t1=pick();addEdge(n.id,t1.id);n.deg++;t1.deg++;
+        if(Math.random()<0.16&&local.length>2){
+          const t2=pick();if(t2!==t1){addEdge(n.id,t2.id);n.deg++;t2.deg++;}}
+      }
+      local.push(n);
+    });
+  });
+  // a few bridges between pockets, like cross-topic links
+  for(let b=0;b<Math.round(bg.nodes.length/16);b++){
+    const i=(Math.random()*bg.nodes.length)|0,j=(Math.random()*bg.nodes.length)|0;
+    if(i!==j&&bg.nodes[i].k!==bg.nodes[j].k){addEdge(i,j);bg.nodes[i].deg++;bg.nodes[j].deg++;}
   }
-  const place=a=>{a.x=W/2+Math.cos(a.ang)*a.orbR*1.28;
-                  a.y=CY()*0.97+Math.sin(a.ang)*a.orbR*0.85;};
-  bg.anchors.forEach(place);
-  for(let i=0;i<N;i++){
-    const k=i%K,a=bg.anchors[k];
-    const spread=Math.min(W,H)*0.115,t=Math.random()*Math.PI*2,rr=Math.abs(gauss())*spread;
-    bg.nodes.push({x:a.x+Math.cos(t)*rr*1.2,y:a.y+Math.sin(t)*rr*0.85,
-      vx:0,vy:0,k,glow:0,tw:Math.random()*Math.PI*2,
-      r:Math.random()<0.06?2.4+Math.random()*1.9:0.7+Math.random()*1.5});
-  }
-  // edges: 2 nearest in-cluster + occasional bridge to another cluster
-  const eset=new Set();
-  const addE=(i,j)=>{const key=i<j?i+"_"+j:j+"_"+i;
-    if(!eset.has(key)){eset.add(key);bg.edges.push({i:Math.min(i,j),j:Math.max(i,j)});}};
-  for(let i=0;i<N;i++){
-    const near=[],far=[];
-    for(let j=0;j<N;j++){if(i===j)continue;
-      const dx=bg.nodes[i].x-bg.nodes[j].x,dy=bg.nodes[i].y-bg.nodes[j].y,d=dx*dx+dy*dy;
-      (bg.nodes[j].k===bg.nodes[i].k?near:far).push({j,d});}
-    near.sort((a,b)=>a.d-b.d);far.sort((a,b)=>a.d-b.d);
-    for(let m=0;m<Math.min(2,near.length);m++)addE(i,near[m].j);
-    if(i%7===0&&far.length)addE(i,far[0].j);   // inter-cluster bridges
-  }
-  bg.adj=Array.from({length:N},()=>[]);
+  bg.adj=Array.from({length:bg.nodes.length},()=>[]);
   bg.edges.forEach(e=>{bg.adj[e.i].push(e.j);bg.adj[e.j].push(e.i);});
+  // radius from connections (Obsidian: linked-to = bigger); staggered birth
+  bg.nodes.forEach((n,i)=>{n.r=1.7+Math.min(6.5,n.deg*0.75);n.born=bornBase+i*14;});
+  view.x=0;view.y=0;view.k=1;
 }
+
+async function loadWeb(){
+  try{const rows=await rpc("brain_constellation",{n_per:75});buildWeb(rows);}
+  catch(e){ // offline fallback: quiet placeholder web
+    buildWeb(Array.from({length:120},(_,i)=>({source:["sermon","facebook","onenote"][i%3],
+      title:"",ref:"",item_date:null})));}
+}
+loadWeb();
 
 function seedWave(now){
   const n=bg.nodes.length;if(!n)return;
@@ -214,59 +238,103 @@ function seedWave(now){
   const q=[seed];
   while(q.length){const u=q.shift();
     for(const v of bg.adj[u])if(dist[v]<0){dist[v]=dist[u]+1;q.push(v);}}
-  waves.push({t0:now,dist,hop:thinking?70:150,life:thinking?750:1300});
-  if(waves.length>5)waves.shift();
+  waves.push({t0:now,dist,hop:thinking?85:170,life:thinking?900:1500});
+  if(waves.length>4)waves.shift();
 }
 
-function stepBg(now){
-  bg.anchors.forEach(a=>{a.ang+=a.sp;a.wob+=0.006;
-    a.x=W/2+Math.cos(a.ang)*a.orbR*1.28+Math.sin(a.wob)*6;
-    a.y=CY()*0.97+Math.sin(a.ang)*a.orbR*0.85+Math.cos(a.wob*0.8)*5;});
+function stepWeb(now){
   const n=bg.nodes;
   for(let i=0;i<n.length;i++){
-    const p=n[i],a=bg.anchors[p.k];
-    p.vx+=(a.x-p.x)*0.00030;p.vy+=(a.y-p.y)*0.00030;
-    for(let s=0;s<2;s++){                      // soft local separation, sampled
-      const q=n[(Math.random()*n.length)|0];if(q===p)continue;
-      const dx=p.x-q.x,dy=p.y-q.y,d2=dx*dx+dy*dy;
-      if(d2<700&&d2>1){const f=0.30/d2;p.vx+=dx*f;p.vy+=dy*f;}}
-    p.vx*=0.965;p.vy*=0.965;p.x+=p.vx;p.y+=p.vy;p.tw+=0.016;
-    let g=0;
+    const p=n[i];if(now<p.born)continue;
+    if(i===dragNode){p.vx=0;p.vy=0;continue;}
+    let fx=0,fy=0;
+    for(let j=0;j<n.length;j++){        // repulsion (Obsidian "repel force")
+      if(i===j)continue;const q2=n[j];if(now<q2.born)continue;
+      const dx=p.x-q2.x,dy=p.y-q2.y,d2=dx*dx+dy*dy;
+      if(d2<48400&&d2>0.01){const f=42/d2;fx+=dx*f;fy+=dy*f;}}
+    fx+=(W/2-p.x)*0.00022;fy+=(H*0.54-p.y)*0.00022;   // center force
+    p.vx=(p.vx+fx)*0.90;p.vy=(p.vy+fy)*0.90;
+  }
+  for(const e of bg.edges){             // link force
+    const a=n[e.i],b=n[e.j];if(now<a.born||now<b.born)continue;
+    const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
+    const f=(d-64)*0.006/d;
+    if(e.i!==dragNode){a.vx+=dx*f;a.vy+=dy*f;}
+    if(e.j!==dragNode){b.vx+=dx*-f*-1*0+dy*0-dx*f*0- dy*0 + 0, b.vx-=dx*f, b.vy-=dy*f;}
+  }
+  for(const p of n){if(performance.now()<p.born)continue;p.x+=p.vx;p.y+=p.vy;}
+  for(let i=0;i<n.length;i++){          // wave glow
+    const p=n[i];let g=0;
     for(const w of waves){const d=w.dist[i];if(d<0)continue;
       const t=now-w.t0-d*w.hop;
       if(t>0&&t<w.life){const ph=t/w.life;g=Math.max(g,Math.sin(ph*Math.PI));}}
-    p.glow=g*(thinking?1:0.5);
+    p.glow=g*(thinking?1:0.55);
   }
-  if(now-lastWave>(thinking?520:4500)){seedWave(now);lastWave=now;}
+  if(now-lastWave>(thinking?620:5200)){seedWave(now);lastWave=now;}
 }
 
-function drawBg(dim){
+function drawWeb(now,dim){
+  const hoverOn=bgHover>=0&&mode==="idle";
+  // edges: hair-thin; neighborhood lights up on hover; waves travel
   for(const e of bg.edges){
-    const A=bg.nodes[e.i],B=bg.nodes[e.j],g=Math.max(A.glow,B.glow);
-    cx.strokeStyle=g>0.04?hex(bg.anchors[A.k].c,(0.06+g*0.42)*dim)
-                         :`rgba(139,148,167,${(0.055+0.02*Math.sin((A.tw+B.tw)*0.5))*dim})`;
-    cx.lineWidth=0.4+g*1.0;
-    cx.beginPath();cx.moveTo(A.x,A.y);cx.lineTo(B.x,B.y);cx.stroke();
+    const A=bg.nodes[e.i],B=bg.nodes[e.j];
+    if(now<A.born||now<B.born)continue;
+    const [ax,ay]=toScreen(A.x,A.y),[bx,by]=toScreen(B.x,B.y);
+    const g=Math.max(A.glow,B.glow);
+    let alpha=0.10,color=`rgba(150,158,175,`,width=0.5;
+    if(hoverOn){
+      const inNbr=(e.i===bgHover||e.j===bgHover);
+      alpha=inNbr?0.55:0.03;
+      if(inNbr){color=hexA(COLORS[A.k],1).replace(/,[^,]+\)$/,",");width=1.1;}
+    }else if(g>0.04){color=hexA(COLORS[A.k],1).replace(/,[^,]+\)$/,",");alpha=0.10+g*0.45;width=0.5+g*0.9;}
+    cx.strokeStyle=color+(alpha*dim)+")";
+    cx.lineWidth=width;
+    cx.beginPath();cx.moveTo(ax,ay);cx.lineTo(bx,by);cx.stroke();
   }
-  for(const p of bg.nodes){
-    const twk=0.6+0.3*Math.sin(p.tw),c=bg.anchors[p.k].c;
-    if(p.glow>0.04){cx.save();cx.shadowBlur=14*p.glow;cx.shadowColor=c;
-      cx.fillStyle=hex(c,(0.35+p.glow*0.65)*dim);
-      cx.beginPath();cx.arc(p.x,p.y,p.r*(1+p.glow*0.8),0,7);cx.fill();cx.restore();}
-    else{cx.fillStyle=hex(c,0.28*twk*dim);
-      cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill();}
+  // nodes + labels
+  const labelAlphaBase=Math.max(0,Math.min(1,(view.k-0.55)/0.4)); // text fade threshold
+  cx.textAlign="center";
+  for(let i=0;i<bg.nodes.length;i++){
+    const p=bg.nodes[i];if(now<p.born)continue;
+    const birth=Math.min(1,(now-p.born)/500);
+    const [sx,sy]=toScreen(p.x,p.y);
+    if(sx<-40||sx>W+40||sy<-40||sy>H+40)continue;
+    const c=COLORS[p.k];
+    let a=0.62,rad=p.r*view.k*(0.4+0.6*birth),glow=p.glow;
+    if(hoverOn){
+      if(i===bgHover){a=1;glow=1;rad*=1.25;}
+      else if(bgNbr.has(i)){a=0.95;glow=Math.max(glow,0.5);}
+      else a=0.10;
+    }
+    if(glow>0.04){cx.save();cx.shadowBlur=16*glow;cx.shadowColor=c;
+      cx.fillStyle=hexA(c,Math.min(1,(a+glow*0.4))*dim*birth);
+      cx.beginPath();cx.arc(sx,sy,rad*(1+glow*0.35),0,7);cx.fill();cx.restore();}
+    else{cx.fillStyle=hexA(c,a*0.8*dim*birth);
+      cx.beginPath();cx.arc(sx,sy,rad,0,7);cx.fill();}
+    // label: faint under the node, brighter for hubs and neighborhoods
+    const t=p.d.title;
+    if(!t)continue;
+    let la=labelAlphaBase*(0.14+Math.min(0.20,p.deg*0.03));
+    if(hoverOn){la=(i===bgHover)?0.95:(bgNbr.has(i)?0.75:0.02);}
+    else if(glow>0.3)la=Math.max(la,glow*0.55);
+    if(la<=0.02)continue;
+    const fs=Math.max(7.5,Math.min(13,10*view.k));
+    cx.font=`400 ${fs}px Inter`;
+    cx.fillStyle=`rgba(196,204,218,${la*dim*birth})`;
+    cx.fillText(t.length>34&&!(hoverOn&&(i===bgHover||bgNbr.has(i)))?t.slice(0,32)+"…":t,
+                sx,sy+rad+fs+2);
   }
 }
 
-/* ---------- result graph (foreground) ---------- */
+/* ---------- result graph (foreground, after a question) ---------- */
 function buildGraph(data){
-  mode="graph";pulses=[];
+  mode="graph";pulses=[];hover=null;
   const N=data.nodes||[];
-  const center={x:W/2,y:CY(),vx:0,vy:0,r:7,c:"#ffffff",center:true,label:queryLabel};
+  const center={x:W/2,y:H*0.56,vx:0,vy:0,r:7,c:"#ffffff",center:true,label:queryLabel};
   nodes=[center];
   N.forEach((d,i)=>{
     const ang=(i/Math.max(1,N.length))*Math.PI*2,rad=Math.min(W,H)*0.26+Math.random()*60;
-    nodes.push({x:W/2+Math.cos(ang)*rad,y:CY()+Math.sin(ang)*rad,
+    nodes.push({x:W/2+Math.cos(ang)*rad,y:H*0.56+Math.sin(ang)*rad,
       vx:0,vy:0,r:5+(d.sim||0.5)*11,c:COLORS[srcKey(d.source)],d});
   });
   edges=[];
@@ -283,7 +351,7 @@ function stepGraph(){
     for(let j=1;j<nodes.length;j++){if(i===j)continue;const b=nodes[j];if(!visible(b))continue;
       let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+40,f=2600/d2;
       fx+=dx*f/Math.sqrt(d2);fy+=dy*f/Math.sqrt(d2);}
-    fx+=(W/2-a.x)*0.0009;fy+=(CY()-a.y)*0.0009;
+    fx+=(W/2-a.x)*0.0009;fy+=(H*0.56-a.y)*0.0009;
     a.vx=(a.vx+fx)*0.86;a.vy=(a.vy+fy)*0.86;}
   edges.forEach(e=>{const a=nodes[e.a],b=nodes[e.b];if(!visible(a)||!visible(b))return;
     const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,
@@ -291,7 +359,7 @@ function stepGraph(){
     const ux=dx/d,uy=dy/d;
     if(!a.center){a.vx+=ux*f*d*0.02;a.vy+=uy*f*d*0.02;}
     if(!b.center){b.vx-=ux*f*d*0.02;b.vy-=uy*f*d*0.02;}});
-  nodes.forEach(n=>{if(n.center){n.x=W/2;n.y=CY();return;}
+  nodes.forEach(n=>{if(n.center){n.x=W/2;n.y=H*0.56;return;}
     n.x+=n.vx;n.y+=n.vy;
     n.x=Math.max(30,Math.min(W-30,n.x));n.y=Math.max(H*0.22,Math.min(H-70,n.y));});
   if(Math.random()<0.08&&edges.length){const e=edges[(Math.random()*edges.length)|0];
@@ -318,7 +386,10 @@ function drawGraph(){
     cx.beginPath();cx.arc(n.x,n.y,n===hover?n.r+2:n.r,0,7);cx.fill();cx.restore();
     if(n.center&&n.label){cx.font="italic 500 13px 'Cormorant Garamond',serif";
       cx.fillStyle="rgba(232,236,244,.85)";cx.textAlign="center";
-      cx.fillText("“"+n.label+"”",n.x,n.y-16);}});
+      cx.fillText("“"+n.label+"”",n.x,n.y-16);}
+    if(n.d){const fs=11;cx.font=`400 ${fs}px Inter`;cx.textAlign="center";
+      cx.fillStyle="rgba(196,204,218,.5)";
+      const t=(n.d.title||"");cx.fillText(t.length>30?t.slice(0,28)+"…":t,n.x,n.y+n.r+fs+3);}});
   if(hover&&hover.d){const n=hover;
     cx.font="500 12.5px Inter";cx.textAlign="center";
     const t=(n.d.title||"").length>54?n.d.title.slice(0,52)+"…":(n.d.title||"");
@@ -332,30 +403,69 @@ function drawGraph(){
 
 function frame(now){
   cx.clearRect(0,0,W,H);
-  stepBg(now||0);
-  drawBg(mode==="graph"?0.30:1);   // web recedes when results are on stage
+  stepWeb(now||0);
+  drawWeb(now||0,mode==="graph"?0.22:1);
   if(mode==="graph"){stepGraph();drawGraph();}
   requestAnimationFrame(frame);
 }
-size();
 requestAnimationFrame(frame);
 
-/* ---------- interaction ---------- */
+/* ---------- interaction: hover, click, drag, pan, zoom ---------- */
+function pickWebNode(mx,my){
+  const [wx,wy]=toWorld(mx,my);
+  let best=-1,bd=1e9;
+  for(let i=0;i<bg.nodes.length;i++){const p=bg.nodes[i];
+    const d=Math.hypot(wx-p.x,wy-p.y);
+    if(d<(p.r+8)/Math.min(1,view.k)+4&&d<bd){bd=d;best=i;}}
+  return best;
+}
 cv.addEventListener("mousemove",e=>{
-  hover=null;
-  if(mode!=="graph")return;
-  for(const n of nodes){if(!n.d)continue;
-    if(Math.hypot(e.clientX-n.x,e.clientY-n.y)<n.r+9){hover=n;break;}}
-  cv.style.cursor=hover?"pointer":"default";
+  if(panning){view.x+=e.clientX-px;view.y+=e.clientY-py;px=e.clientX;py=e.clientY;return;}
+  if(dragNode>=0){const [wx,wy]=toWorld(e.clientX,e.clientY);
+    bg.nodes[dragNode].x=wx;bg.nodes[dragNode].y=wy;return;}
+  if(mode==="graph"){
+    hover=null;
+    for(const n of nodes){if(!n.d)continue;
+      if(Math.hypot(e.clientX-n.x,e.clientY-n.y)<n.r+9){hover=n;break;}}
+    cv.style.cursor=hover?"pointer":"default";
+    return;
+  }
+  bgHover=pickWebNode(e.clientX,e.clientY);
+  bgNbr=new Set(bgHover>=0?bg.adj[bgHover]:[]);
+  cv.style.cursor=bgHover>=0?"pointer":"grab";
 });
-cv.addEventListener("click",()=>{if(hover&&hover.d)openPanel(hover.d);});
+cv.addEventListener("mousedown",e=>{
+  if(mode==="graph")return;
+  const hit=pickWebNode(e.clientX,e.clientY);
+  if(hit>=0){dragNode=hit;cv.style.cursor="grabbing";}
+  else{panning=true;px=e.clientX;py=e.clientY;cv.style.cursor="grabbing";}
+});
+addEventListener("mouseup",e=>{
+  if(dragNode>=0){
+    const p=bg.nodes[dragNode],[wx,wy]=toWorld(e.clientX,e.clientY);
+    if(Math.hypot(wx-p.x,wy-p.y)<3&&p.d.ref)openPanel(p.d);   // click = read
+    dragNode=-1;
+  }
+  panning=false;cv.style.cursor="default";
+});
+cv.addEventListener("click",()=>{
+  if(mode==="graph"&&hover&&hover.d)openPanel(hover.d);
+});
+cv.addEventListener("wheel",e=>{
+  if(mode==="graph")return;
+  e.preventDefault();
+  const k2=Math.max(0.35,Math.min(3,view.k*Math.exp(-e.deltaY*0.0011)));
+  const [wx,wy]=toWorld(e.clientX,e.clientY);
+  view.k=k2;view.x=e.clientX-wx*k2;view.y=e.clientY-wy*k2;
+},{passive:false});
+cv.addEventListener("dblclick",()=>{if(mode==="idle"){view.x=0;view.y=0;view.k=1;}});
 
 async function openPanel(d){
   const k=srcKey(d.source);
   document.getElementById("bdot").style.background=COLORS[k];
   document.getElementById("bsrc").textContent=d.source;
   document.getElementById("ptitle").textContent=d.title;
-  document.getElementById("pmeta").textContent=(d.date||"")+(d.sim?"  ·  match "+Math.round(d.sim*100)+"%":"");
+  document.getElementById("pmeta").textContent=(d.date||"");
   document.getElementById("pbody").textContent="…";
   document.getElementById("panel").classList.add("open");
   try{const rows=await rpc("brain_get_item",{p_ref:d.ref});
@@ -386,17 +496,17 @@ document.querySelectorAll("input[name=mode]").forEach(r=>r.addEventListener("cha
 const loading=document.getElementById("loading"),hint=document.getElementById("hint");
 const answerEl=document.getElementById("answer"),atext=document.getElementById("atext"),
       asrcs=document.getElementById("asrcs");
-let hist=[];   // rolling conversation for follow-up questions
+let hist=[];
 
 const THINK_LINES=[
   "searching 17,488 memories","reading your sermons","walking back through the years",
   "cross-referencing Facebook","checking your notes","following the thread",
-  "connecting the dots","reading the full text","comparing 2014 to now","almost there"];
+  "connecting the dots","reading the full text","comparing then to now","almost there"];
 let thinkTimer=null;
 function startThinking(){
   thinking=true;
-  answerEl.classList.remove("show");atext.innerHTML="";asrcs.innerHTML="";  // clear old Q&A
-  mode="idle";nodes=[];edges=[];pulses=[];   // the constellation takes the stage
+  answerEl.classList.remove("show");atext.innerHTML="";asrcs.innerHTML="";
+  mode="idle";nodes=[];edges=[];pulses=[];
   hint.style.opacity=0;
   loading.classList.add("show");
   let i=0;loading.textContent=THINK_LINES[0];
@@ -435,7 +545,7 @@ async function ask(q){
     const k=srcKey(s.source),p=document.createElement("div");
     p.className="srcpill";
     p.innerHTML=`<span class="dot" style="background:${COLORS[k]}"></span>${(s.date||"").slice(0,4)} · ${s.title}`;
-    p.onclick=()=>openPanel({source:s.source,title:s.title,date:s.date,ref:s.ref,sim:s.sim||0});
+    p.onclick=()=>openPanel({source:s.source,title:s.title,date:s.date,ref:s.ref});
     asrcs.appendChild(p);
   });
   buildGraph({nodes:(j.sources||[]).map((s,i)=>({id:i+1,source:s.source,title:s.title,
@@ -447,7 +557,7 @@ async function search(){
   if(!q)return;
   queryLabel=q;
   document.getElementById("panel").classList.remove("open");
-  startThinking();   // clears the previous answer; waves sweep the constellation
+  startThinking();
   try{
     const m=document.querySelector("input[name=mode]:checked").value;
     if(m==="ask"){
@@ -463,7 +573,7 @@ async function search(){
     }
   }catch(e){alert("Search failed: "+e.message);}
   stopThinking();
-  document.getElementById("q").select();   // ready for the next question
+  document.getElementById("q").select();
 }
 document.getElementById("go").onclick=search;
 document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")search();});
