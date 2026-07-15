@@ -224,10 +224,14 @@ function buildWeb(rows){
 }
 
 async function loadWeb(){
-  try{const rows=await rpc("brain_constellation",{n_per:75});buildWeb(rows);}
-  catch(e){ // offline fallback: quiet placeholder web
-    buildWeb(Array.from({length:120},(_,i)=>({source:["sermon","facebook","onenote"][i%3],
-      title:"",ref:"",item_date:null})));}
+  for(let attempt=0;attempt<4;attempt++){
+    try{const rows=await rpc("brain_constellation",{n_per:75});buildWeb(rows);return;}
+    catch(e){console.warn("constellation load failed, retrying...",e);
+      await new Promise(r=>setTimeout(r,1000*(attempt+1)));}
+  }
+  // last resort: placeholder web so the page is never empty
+  buildWeb(Array.from({length:120},(_,i)=>({source:["sermon","facebook","onenote"][i%3],
+    title:"",ref:"",item_date:null})));
 }
 loadWeb();
 
@@ -260,7 +264,7 @@ function stepWeb(now){
     const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
     const f=(d-64)*0.006/d;
     if(e.i!==dragNode){a.vx+=dx*f;a.vy+=dy*f;}
-    if(e.j!==dragNode){b.vx+=dx*-f*-1*0+dy*0-dx*f*0- dy*0 + 0, b.vx-=dx*f, b.vy-=dy*f;}
+    if(e.j!==dragNode){b.vx-=dx*f;b.vy-=dy*f;}
   }
   for(const p of n){if(performance.now()<p.born)continue;p.x+=p.vx;p.y+=p.vy;}
   for(let i=0;i<n.length;i++){          // wave glow
