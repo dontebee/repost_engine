@@ -151,7 +151,8 @@ function size(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;
   cv.style.width=W+"px";cv.style.height=H+"px";cx.setTransform(DPR,0,0,DPR,0,0);}
 size();addEventListener("resize",size);
 
-let nodes=[],edges=[],pulses=[],mode="idle",hover=null,queryLabel="";
+let nodes=[],edges=[],pulses=[],ripples=[],sparks=[],mode="idle",hover=null,
+    thinking=false,queryLabel="";
 const CY=()=>H*0.56;
 
 function seedIdle(){                        // ambient resting brain
@@ -215,12 +216,30 @@ function step(){
     if(Math.random()<0.05&&edges.length)
       pulses.push({e:edges[Math.random()*edges.length|0],t:0,sp:0.006+Math.random()*0.008,dir:1});
   }
+  if(thinking){
+    // overdrive: storm of pulses, radiating ripples, flying sparks
+    for(let k=0;k<3;k++) if(edges.length)
+      pulses.push({e:edges[Math.random()*edges.length|0],t:0,sp:0.02+Math.random()*0.03,
+                   dir:Math.random()<.5?1:-1});
+    if(Math.random()<0.06) ripples.push({r:10,a:0.5});
+    if(Math.random()<0.5){const ang=Math.random()*Math.PI*2;
+      sparks.push({x:W/2,y:CY(),vx:Math.cos(ang)*(1.5+Math.random()*2.5),
+                   vy:Math.sin(ang)*(1.5+Math.random()*2.5),life:1});}
+  }
+  ripples=ripples.filter(r=>{r.r+=3.2;r.a*=0.975;return r.a>0.02&&r.r<Math.max(W,H)});
+  sparks=sparks.filter(s=>{s.x+=s.vx;s.y+=s.vy;s.life-=0.016;return s.life>0});
   pulses=pulses.filter(p=>(p.t+=p.sp)<1);
+  if(pulses.length>260)pulses.splice(0,pulses.length-260);
 }
 
 function draw(){
   cx.clearRect(0,0,W,H);
   const visible=n=>n.center||!n.d||chipOn[srcKey(n.d.source)];
+  ripples.forEach(r=>{cx.save();cx.globalAlpha=r.a;cx.strokeStyle="#f0b429";
+    cx.lineWidth=1.2;cx.beginPath();cx.arc(W/2,CY(),r.r,0,7);cx.stroke();cx.restore();});
+  sparks.forEach(s=>{cx.save();cx.globalCompositeOperation="lighter";
+    cx.globalAlpha=s.life;cx.shadowBlur=10;cx.shadowColor="#f0b429";cx.fillStyle="#ffe9b0";
+    cx.beginPath();cx.arc(s.x,s.y,1.4,0,7);cx.fill();cx.restore();});
   edges.forEach(e=>{const a=nodes[e.a],b=nodes[e.b];if(!a||!b||!visible(a)||!visible(b))return;
     const g=cx.createLinearGradient(a.x,a.y,b.x,b.y);
     g.addColorStop(0,a.c+"33");g.addColorStop(1,b.c+"33");
@@ -302,6 +321,26 @@ const answerEl=document.getElementById("answer"),atext=document.getElementById("
       asrcs=document.getElementById("asrcs");
 let hist=[];   // rolling conversation for follow-up questions
 
+const THINK_LINES=[
+  "firing synapses","searching 17,488 memories","reading your sermons",
+  "walking back through the years","cross-referencing Facebook","checking your notes",
+  "following the thread","connecting the dots","reading the full text",
+  "listening to what you said","comparing 2014 to now","almost there"];
+let thinkTimer=null;
+function startThinking(){
+  thinking=true;
+  answerEl.classList.remove("show");atext.innerHTML="";asrcs.innerHTML="";  // clear old Q&A
+  hint.style.opacity=0;
+  loading.classList.add("show");
+  let i=0;loading.textContent=THINK_LINES[0];
+  thinkTimer=setInterval(()=>{loading.textContent=THINK_LINES[++i%THINK_LINES.length];},2200);
+}
+function stopThinking(){
+  thinking=false;
+  loading.classList.remove("show");
+  if(thinkTimer){clearInterval(thinkTimer);thinkTimer=null;}
+}
+
 function typewrite(el,text){
   el.innerHTML='<span class="cursor">&nbsp;</span>';
   let i=0;const cur=el.querySelector(".cursor");
@@ -313,7 +352,6 @@ function typewrite(el,text){
 }
 
 async function ask(q){
-  loading.textContent="consulting memory";
   const r=await fetch(`${SB}/functions/v1/brain-chat`,{method:"POST",
     headers:{apikey:KEY,Authorization:`Bearer ${KEY}`,"Content-Type":"application/json"},
     body:JSON.stringify({question:q,history:hist})});
@@ -340,26 +378,25 @@ async function ask(q){
 async function search(){
   const q=document.getElementById("q").value.trim();
   if(!q)return;
-  queryLabel=q;hint.style.opacity=0;loading.classList.add("show");
+  queryLabel=q;
   document.getElementById("panel").classList.remove("open");
+  startThinking();   // clears the previous answer + kicks the brain into overdrive
   try{
     const m=document.querySelector("input[name=mode]:checked").value;
     if(m==="ask"){
       await ask(q);
     }else if(m==="meaning"){
-      answerEl.classList.remove("show");
       const g=await rpc("brain_graph",{query:q,match_count:18});
       buildGraph(g);
     }else{
-      answerEl.classList.remove("show");
       const rows=await rpc("brain_keyword",{query:q,match_count:18});
       buildGraph({nodes:rows.map((r,i)=>({id:i+1,source:r.source,title:r.title,
         snippet:r.snippet,date:r.item_date,ref:r.ref,
         sim:Math.max(.4,Math.min(.95,r.rank))})),edges:[]});
     }
   }catch(e){alert("Search failed: "+e.message);}
-  loading.classList.remove("show");
-  loading.textContent="firing synapses";
+  stopThinking();
+  document.getElementById("q").select();   // ready for the next question
 }
 document.getElementById("go").onclick=search;
 document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")search();});
