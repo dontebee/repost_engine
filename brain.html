@@ -46,25 +46,6 @@
     letter-spacing:.24em;text-transform:uppercase;color:var(--dim);z-index:5;pointer-events:none}
   #hint{position:fixed;bottom:38px;left:0;right:0;text-align:center;font-size:12.5px;color:var(--dim);
     z-index:5;pointer-events:none;transition:opacity .6s}
-  /* reading panel */
-  #panel{position:fixed;top:0;right:0;bottom:0;width:min(520px,94vw);z-index:9;
-    background:rgba(9,13,21,.94);backdrop-filter:blur(18px);border-left:1px solid var(--line);
-    transform:translateX(103%);transition:transform .38s cubic-bezier(.2,.9,.25,1);
-    display:flex;flex-direction:column}
-  #panel.open{transform:translateX(0)}
-  .phead{padding:22px 26px 16px;border-bottom:1px solid var(--line)}
-  .badge{display:inline-flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.22em;
-    text-transform:uppercase;color:var(--dim)}
-  .badge .dot{width:8px;height:8px;border-radius:50%}
-  .ptitle{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin-top:10px;line-height:1.25}
-  .pmeta{margin-top:6px;font-size:12px;color:var(--dim)}
-  #pbody{padding:22px 26px;overflow-y:auto;flex:1;font-size:14.5px;line-height:1.75;color:#cdd5e1;
-    white-space:pre-wrap;word-wrap:break-word}
-  #pbody::-webkit-scrollbar{width:8px}
-  #pbody::-webkit-scrollbar-thumb{background:rgba(139,148,167,.25);border-radius:4px}
-  #close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;
-    border:1px solid var(--line);background:transparent;color:var(--dim);font-size:16px;cursor:pointer}
-  #close:hover{color:var(--ink)}
   /* answer card (ask mode) */
   #answer{pointer-events:auto;display:none;margin-top:16px;width:min(680px,92vw);
     max-height:44vh;overflow-y:auto;padding:20px 24px;border-radius:18px;
@@ -127,6 +108,27 @@
   </div>
   <div id="pbody"></div>
 </aside>
+<style>
+  /* reading panel */
+  #panel{position:fixed;top:0;right:0;bottom:0;width:min(520px,94vw);z-index:9;
+    background:rgba(9,13,21,.94);backdrop-filter:blur(18px);border-left:1px solid var(--line);
+    transform:translateX(103%);transition:transform .38s cubic-bezier(.2,.9,.25,1);
+    display:flex;flex-direction:column}
+  #panel.open{transform:translateX(0)}
+  .phead{padding:22px 26px 16px;border-bottom:1px solid var(--line)}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--dim)}
+  .badge .dot{width:8px;height:8px;border-radius:50%}
+  .ptitle{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin-top:10px;line-height:1.25}
+  .pmeta{margin-top:6px;font-size:12px;color:var(--dim)}
+  #pbody{padding:22px 26px;overflow-y:auto;flex:1;font-size:14.5px;line-height:1.75;color:#cdd5e1;
+    white-space:pre-wrap;word-wrap:break-word}
+  #pbody::-webkit-scrollbar{width:8px}
+  #pbody::-webkit-scrollbar-thumb{background:rgba(139,148,167,.25);border-radius:4px}
+  #close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;
+    border:1px solid var(--line);background:transparent;color:var(--dim);font-size:16px;cursor:pointer}
+  #close:hover{color:var(--ink)}
+</style>
 
 <script>
 const SB="https://eibrykdamgyoylnqknao.supabase.co";
@@ -144,107 +146,166 @@ async function rpc(fn,args){
   return r.json();
 }
 
-/* ---------- canvas / simulation ---------- */
+/* ============================================================
+   CANVAS — Obsidian-style living constellation
+   A permanent web of fine nodes in soft source-colored clusters.
+   "Thinking" sends signal waves hop-by-hop through the links.
+   Results dim the web and draw their own graph on top.
+   ============================================================ */
 const cv=document.getElementById("sky"),cx=cv.getContext("2d");
 let W,H,DPR=Math.min(devicePixelRatio||1,2);
-function size(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;
-  cv.style.width=W+"px";cv.style.height=H+"px";cx.setTransform(DPR,0,0,DPR,0,0);}
-size();addEventListener("resize",size);
-
-let nodes=[],edges=[],pulses=[],ripples=[],sparks=[],mode="idle",hover=null,
-    thinking=false,queryLabel="";
 const CY=()=>H*0.56;
+let mode="idle",thinking=false,hover=null,queryLabel="";
+let nodes=[],edges=[],pulses=[];          // result graph (foreground)
 
-function seedIdle(){                        // ambient resting brain
-  nodes=[];edges=[];pulses=[];mode="idle";
-  const n=46;
-  for(let i=0;i<n;i++){
-    const keys=Object.keys(COLORS);
-    nodes.push({x:Math.random()*W,y:H*0.25+Math.random()*H*0.7,
-      vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22,
-      r:1.6+Math.random()*2.6,c:COLORS[keys[i%keys.length]],idle:true});
+function size(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;
+  cv.style.width=W+"px";cv.style.height=H+"px";cx.setTransform(DPR,0,0,DPR,0,0);
+  buildConstellation();}
+addEventListener("resize",size);
+
+/* ---------- ambient constellation ---------- */
+const bg={nodes:[],edges:[],adj:[],anchors:[]};
+let waves=[],lastWave=0;
+const gauss=()=>(Math.random()+Math.random()+Math.random()-1.5)/1.5;
+const hex=(h,a)=>{const n=parseInt(h.slice(1),16);
+  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;};
+
+function buildConstellation(){
+  bg.nodes=[];bg.edges=[];bg.adj=[];bg.anchors=[];waves=[];
+  const keys=Object.keys(COLORS),K=6;
+  const N=Math.round(Math.min(200,Math.max(110,(W*H)/8200)));
+  for(let c=0;c<K;c++){
+    const ang=(c/K)*Math.PI*2+0.35;
+    bg.anchors.push({ang,orbR:Math.min(W,H)*(0.20+((c*97)%23)/230),
+      sp:0.00045*((c%2)?1:-1)*(0.7+((c*53)%29)/29),
+      wob:Math.random()*Math.PI*2,c:COLORS[keys[c%keys.length]],x:0,y:0});
   }
-  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
-    const a=nodes[i],b=nodes[j],d=Math.hypot(a.x-b.x,a.y-b.y);
-    if(d<170&&Math.random()<.24) edges.push({a:i,b:j,w:.25});
+  const place=a=>{a.x=W/2+Math.cos(a.ang)*a.orbR*1.28;
+                  a.y=CY()*0.97+Math.sin(a.ang)*a.orbR*0.85;};
+  bg.anchors.forEach(place);
+  for(let i=0;i<N;i++){
+    const k=i%K,a=bg.anchors[k];
+    const spread=Math.min(W,H)*0.115,t=Math.random()*Math.PI*2,rr=Math.abs(gauss())*spread;
+    bg.nodes.push({x:a.x+Math.cos(t)*rr*1.2,y:a.y+Math.sin(t)*rr*0.85,
+      vx:0,vy:0,k,glow:0,tw:Math.random()*Math.PI*2,
+      r:Math.random()<0.06?2.4+Math.random()*1.9:0.7+Math.random()*1.5});
+  }
+  // edges: 2 nearest in-cluster + occasional bridge to another cluster
+  const eset=new Set();
+  const addE=(i,j)=>{const key=i<j?i+"_"+j:j+"_"+i;
+    if(!eset.has(key)){eset.add(key);bg.edges.push({i:Math.min(i,j),j:Math.max(i,j)});}};
+  for(let i=0;i<N;i++){
+    const near=[],far=[];
+    for(let j=0;j<N;j++){if(i===j)continue;
+      const dx=bg.nodes[i].x-bg.nodes[j].x,dy=bg.nodes[i].y-bg.nodes[j].y,d=dx*dx+dy*dy;
+      (bg.nodes[j].k===bg.nodes[i].k?near:far).push({j,d});}
+    near.sort((a,b)=>a.d-b.d);far.sort((a,b)=>a.d-b.d);
+    for(let m=0;m<Math.min(2,near.length);m++)addE(i,near[m].j);
+    if(i%7===0&&far.length)addE(i,far[0].j);   // inter-cluster bridges
+  }
+  bg.adj=Array.from({length:N},()=>[]);
+  bg.edges.forEach(e=>{bg.adj[e.i].push(e.j);bg.adj[e.j].push(e.i);});
+}
+
+function seedWave(now){
+  const n=bg.nodes.length;if(!n)return;
+  const seed=(Math.random()*n)|0;
+  const dist=new Array(n).fill(-1);dist[seed]=0;
+  const q=[seed];
+  while(q.length){const u=q.shift();
+    for(const v of bg.adj[u])if(dist[v]<0){dist[v]=dist[u]+1;q.push(v);}}
+  waves.push({t0:now,dist,hop:thinking?70:150,life:thinking?750:1300});
+  if(waves.length>5)waves.shift();
+}
+
+function stepBg(now){
+  bg.anchors.forEach(a=>{a.ang+=a.sp;a.wob+=0.006;
+    a.x=W/2+Math.cos(a.ang)*a.orbR*1.28+Math.sin(a.wob)*6;
+    a.y=CY()*0.97+Math.sin(a.ang)*a.orbR*0.85+Math.cos(a.wob*0.8)*5;});
+  const n=bg.nodes;
+  for(let i=0;i<n.length;i++){
+    const p=n[i],a=bg.anchors[p.k];
+    p.vx+=(a.x-p.x)*0.00030;p.vy+=(a.y-p.y)*0.00030;
+    for(let s=0;s<2;s++){                      // soft local separation, sampled
+      const q=n[(Math.random()*n.length)|0];if(q===p)continue;
+      const dx=p.x-q.x,dy=p.y-q.y,d2=dx*dx+dy*dy;
+      if(d2<700&&d2>1){const f=0.30/d2;p.vx+=dx*f;p.vy+=dy*f;}}
+    p.vx*=0.965;p.vy*=0.965;p.x+=p.vx;p.y+=p.vy;p.tw+=0.016;
+    let g=0;
+    for(const w of waves){const d=w.dist[i];if(d<0)continue;
+      const t=now-w.t0-d*w.hop;
+      if(t>0&&t<w.life){const ph=t/w.life;g=Math.max(g,Math.sin(ph*Math.PI));}}
+    p.glow=g*(thinking?1:0.5);
+  }
+  if(now-lastWave>(thinking?520:4500)){seedWave(now);lastWave=now;}
+}
+
+function drawBg(dim){
+  for(const e of bg.edges){
+    const A=bg.nodes[e.i],B=bg.nodes[e.j],g=Math.max(A.glow,B.glow);
+    cx.strokeStyle=g>0.04?hex(bg.anchors[A.k].c,(0.06+g*0.42)*dim)
+                         :`rgba(139,148,167,${(0.055+0.02*Math.sin((A.tw+B.tw)*0.5))*dim})`;
+    cx.lineWidth=0.4+g*1.0;
+    cx.beginPath();cx.moveTo(A.x,A.y);cx.lineTo(B.x,B.y);cx.stroke();
+  }
+  for(const p of bg.nodes){
+    const twk=0.6+0.3*Math.sin(p.tw),c=bg.anchors[p.k].c;
+    if(p.glow>0.04){cx.save();cx.shadowBlur=14*p.glow;cx.shadowColor=c;
+      cx.fillStyle=hex(c,(0.35+p.glow*0.65)*dim);
+      cx.beginPath();cx.arc(p.x,p.y,p.r*(1+p.glow*0.8),0,7);cx.fill();cx.restore();}
+    else{cx.fillStyle=hex(c,0.28*twk*dim);
+      cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill();}
   }
 }
-seedIdle();
 
+/* ---------- result graph (foreground) ---------- */
 function buildGraph(data){
   mode="graph";pulses=[];
   const N=data.nodes||[];
   const center={x:W/2,y:CY(),vx:0,vy:0,r:7,c:"#ffffff",center:true,label:queryLabel};
   nodes=[center];
   N.forEach((d,i)=>{
-    const ang=(i/N.length)*Math.PI*2, rad=Math.min(W,H)*0.26+Math.random()*60;
+    const ang=(i/Math.max(1,N.length))*Math.PI*2,rad=Math.min(W,H)*0.26+Math.random()*60;
     nodes.push({x:W/2+Math.cos(ang)*rad,y:CY()+Math.sin(ang)*rad,
-      vx:0,vy:0,r:5+d.sim*11,c:COLORS[srcKey(d.source)],d,on:true});
+      vx:0,vy:0,r:5+(d.sim||0.5)*11,c:COLORS[srcKey(d.source)],d});
   });
   edges=[];
-  nodes.slice(1).forEach((n,i)=>edges.push({a:0,b:i+1,w:Math.max(.12,(n.d.sim-.35))*1.4,toCenter:true}));
-  (data.edges||[]).forEach(e=>edges.push({a:e.a? nodes.findIndex(n=>n.d&&n.d.id===e.a):0,
+  nodes.slice(1).forEach((n,i)=>edges.push({a:0,b:i+1,w:Math.max(.12,((n.d.sim||0.5)-.35))*1.4,toCenter:true}));
+  (data.edges||[]).forEach(e=>edges.push({a:nodes.findIndex(n=>n.d&&n.d.id===e.a),
                                           b:nodes.findIndex(n=>n.d&&n.d.id===e.b),w:(e.w-.45)*2.2}));
   edges=edges.filter(e=>e.a>=0&&e.b>=0);
 }
 
-function step(){
+function stepGraph(){
   const visible=n=>n.center||!n.d||chipOn[srcKey(n.d.source)];
-  if(mode==="graph"){
-    for(let i=1;i<nodes.length;i++){const a=nodes[i];if(!visible(a))continue;
-      let fx=0,fy=0;
-      for(let j=1;j<nodes.length;j++){if(i===j)continue;const b=nodes[j];if(!visible(b))continue;
-        let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+40,f=2600/d2;
-        fx+=dx*f/Math.sqrt(d2);fy+=dy*f/Math.sqrt(d2);}
-      fx+=(W/2-a.x)*0.0009;fy+=(CY()-a.y)*0.0009;
-      a.vx=(a.vx+fx)*0.86;a.vy=(a.vy+fy)*0.86;}
-    edges.forEach(e=>{const a=nodes[e.a],b=nodes[e.b];if(!visible(a)||!visible(b))return;
-      const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,
-      target=e.toCenter?190-60*e.w:150,f=(d-target)*0.0016*(0.5+e.w);
-      const ux=dx/d,uy=dy/d;
-      if(!a.center){a.vx+=ux*f*d*0.02;a.vy+=uy*f*d*0.02;}
-      if(!b.center){b.vx-=ux*f*d*0.02;b.vy-=uy*f*d*0.02;}});
-    nodes.forEach(n=>{if(n.center){n.x=W/2;n.y=CY();return;}
-      n.x+=n.vx;n.y+=n.vy;
-      n.x=Math.max(30,Math.min(W-30,n.x));n.y=Math.max(H*0.22,Math.min(H-70,n.y));});
-    if(Math.random()<0.10&&edges.length){const e=edges[Math.random()*edges.length|0];
-      if(visible(nodes[e.a])&&visible(nodes[e.b]))
-        pulses.push({e,t:0,sp:0.008+Math.random()*0.012,dir:Math.random()<.5?1:-1});}
-  }else{
-    nodes.forEach(n=>{n.x+=n.vx;n.y+=n.vy;
-      if(n.x<0||n.x>W)n.vx*=-1;if(n.y<H*0.2||n.y>H)n.vy*=-1;});
-    if(Math.random()<0.05&&edges.length)
-      pulses.push({e:edges[Math.random()*edges.length|0],t:0,sp:0.006+Math.random()*0.008,dir:1});
-  }
-  if(thinking){
-    // overdrive: storm of pulses, radiating ripples, flying sparks
-    for(let k=0;k<3;k++) if(edges.length)
-      pulses.push({e:edges[Math.random()*edges.length|0],t:0,sp:0.02+Math.random()*0.03,
-                   dir:Math.random()<.5?1:-1});
-    if(Math.random()<0.06) ripples.push({r:10,a:0.5});
-    if(Math.random()<0.5){const ang=Math.random()*Math.PI*2;
-      sparks.push({x:W/2,y:CY(),vx:Math.cos(ang)*(1.5+Math.random()*2.5),
-                   vy:Math.sin(ang)*(1.5+Math.random()*2.5),life:1});}
-  }
-  ripples=ripples.filter(r=>{r.r+=3.2;r.a*=0.975;return r.a>0.02&&r.r<Math.max(W,H)});
-  sparks=sparks.filter(s=>{s.x+=s.vx;s.y+=s.vy;s.life-=0.016;return s.life>0});
+  for(let i=1;i<nodes.length;i++){const a=nodes[i];if(!visible(a))continue;
+    let fx=0,fy=0;
+    for(let j=1;j<nodes.length;j++){if(i===j)continue;const b=nodes[j];if(!visible(b))continue;
+      let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+40,f=2600/d2;
+      fx+=dx*f/Math.sqrt(d2);fy+=dy*f/Math.sqrt(d2);}
+    fx+=(W/2-a.x)*0.0009;fy+=(CY()-a.y)*0.0009;
+    a.vx=(a.vx+fx)*0.86;a.vy=(a.vy+fy)*0.86;}
+  edges.forEach(e=>{const a=nodes[e.a],b=nodes[e.b];if(!visible(a)||!visible(b))return;
+    const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,
+    target=e.toCenter?190-60*e.w:150,f=(d-target)*0.0016*(0.5+e.w);
+    const ux=dx/d,uy=dy/d;
+    if(!a.center){a.vx+=ux*f*d*0.02;a.vy+=uy*f*d*0.02;}
+    if(!b.center){b.vx-=ux*f*d*0.02;b.vy-=uy*f*d*0.02;}});
+  nodes.forEach(n=>{if(n.center){n.x=W/2;n.y=CY();return;}
+    n.x+=n.vx;n.y+=n.vy;
+    n.x=Math.max(30,Math.min(W-30,n.x));n.y=Math.max(H*0.22,Math.min(H-70,n.y));});
+  if(Math.random()<0.08&&edges.length){const e=edges[(Math.random()*edges.length)|0];
+    if(visible(nodes[e.a])&&visible(nodes[e.b]))
+      pulses.push({e,t:0,sp:0.008+Math.random()*0.012,dir:Math.random()<.5?1:-1});}
   pulses=pulses.filter(p=>(p.t+=p.sp)<1);
-  if(pulses.length>260)pulses.splice(0,pulses.length-260);
 }
 
-function draw(){
-  cx.clearRect(0,0,W,H);
+function drawGraph(){
   const visible=n=>n.center||!n.d||chipOn[srcKey(n.d.source)];
-  ripples.forEach(r=>{cx.save();cx.globalAlpha=r.a;cx.strokeStyle="#f0b429";
-    cx.lineWidth=1.2;cx.beginPath();cx.arc(W/2,CY(),r.r,0,7);cx.stroke();cx.restore();});
-  sparks.forEach(s=>{cx.save();cx.globalCompositeOperation="lighter";
-    cx.globalAlpha=s.life;cx.shadowBlur=10;cx.shadowColor="#f0b429";cx.fillStyle="#ffe9b0";
-    cx.beginPath();cx.arc(s.x,s.y,1.4,0,7);cx.fill();cx.restore();});
   edges.forEach(e=>{const a=nodes[e.a],b=nodes[e.b];if(!a||!b||!visible(a)||!visible(b))return;
     const g=cx.createLinearGradient(a.x,a.y,b.x,b.y);
     g.addColorStop(0,a.c+"33");g.addColorStop(1,b.c+"33");
-    cx.strokeStyle=mode==="idle"?"rgba(120,135,165,.10)":g;
-    cx.lineWidth=mode==="idle"?0.6:0.5+e.w*1.6;
+    cx.strokeStyle=g;cx.lineWidth=0.5+e.w*1.6;
     cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();});
   pulses.forEach(p=>{const a=nodes[p.e.a],b=nodes[p.e.b];if(!a||!b||!visible(a)||!visible(b))return;
     const t=p.dir>0?p.t:1-p.t,x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;
@@ -253,23 +314,31 @@ function draw(){
     cx.beginPath();cx.arc(x,y,1.7,0,7);cx.fill();cx.restore();});
   nodes.forEach(n=>{if(!visible(n))return;
     cx.save();cx.shadowBlur=n===hover?34:(n.center?30:16);cx.shadowColor=n.c;
-    cx.fillStyle=n.c;cx.globalAlpha=n.idle?0.75:1;
+    cx.fillStyle=n.c;
     cx.beginPath();cx.arc(n.x,n.y,n===hover?n.r+2:n.r,0,7);cx.fill();cx.restore();
     if(n.center&&n.label){cx.font="italic 500 13px 'Cormorant Garamond',serif";
       cx.fillStyle="rgba(232,236,244,.85)";cx.textAlign="center";
       cx.fillText("“"+n.label+"”",n.x,n.y-16);}});
   if(hover&&hover.d){const n=hover;
     cx.font="500 12.5px Inter";cx.textAlign="center";
-    const t=n.d.title.length>54?n.d.title.slice(0,52)+"…":n.d.title;
+    const t=(n.d.title||"").length>54?n.d.title.slice(0,52)+"…":(n.d.title||"");
     const w=cx.measureText(t).width+20;
     cx.fillStyle="rgba(8,12,20,.92)";
     cx.beginPath();cx.roundRect(n.x-w/2,n.y-n.r-38,w,24,12);cx.fill();
     cx.fillStyle="#e8ecf4";cx.fillText(t,n.x,n.y-n.r-22);
     cx.font="400 10px Inter";cx.fillStyle="rgba(139,148,167,.9)";
     cx.fillText((n.d.date||"")+"  ·  "+n.d.source,n.x,n.y+n.r+16);}
-  step();requestAnimationFrame(draw);
 }
-requestAnimationFrame(draw);
+
+function frame(now){
+  cx.clearRect(0,0,W,H);
+  stepBg(now||0);
+  drawBg(mode==="graph"?0.30:1);   // web recedes when results are on stage
+  if(mode==="graph"){stepGraph();drawGraph();}
+  requestAnimationFrame(frame);
+}
+size();
+requestAnimationFrame(frame);
 
 /* ---------- interaction ---------- */
 cv.addEventListener("mousemove",e=>{
@@ -279,16 +348,14 @@ cv.addEventListener("mousemove",e=>{
     if(Math.hypot(e.clientX-n.x,e.clientY-n.y)<n.r+9){hover=n;break;}}
   cv.style.cursor=hover?"pointer":"default";
 });
-cv.addEventListener("click",async()=>{
-  if(!hover||!hover.d)return;
-  openPanel(hover.d);
-});
+cv.addEventListener("click",()=>{if(hover&&hover.d)openPanel(hover.d);});
+
 async function openPanel(d){
   const k=srcKey(d.source);
   document.getElementById("bdot").style.background=COLORS[k];
   document.getElementById("bsrc").textContent=d.source;
   document.getElementById("ptitle").textContent=d.title;
-  document.getElementById("pmeta").textContent=(d.date||"")+"  ·  match "+Math.round(d.sim*100)+"%";
+  document.getElementById("pmeta").textContent=(d.date||"")+(d.sim?"  ·  match "+Math.round(d.sim*100)+"%":"");
   document.getElementById("pbody").textContent="…";
   document.getElementById("panel").classList.add("open");
   try{const rows=await rpc("brain_get_item",{p_ref:d.ref});
@@ -322,18 +389,18 @@ const answerEl=document.getElementById("answer"),atext=document.getElementById("
 let hist=[];   // rolling conversation for follow-up questions
 
 const THINK_LINES=[
-  "firing synapses","searching 17,488 memories","reading your sermons",
-  "walking back through the years","cross-referencing Facebook","checking your notes",
-  "following the thread","connecting the dots","reading the full text",
-  "listening to what you said","comparing 2014 to now","almost there"];
+  "searching 17,488 memories","reading your sermons","walking back through the years",
+  "cross-referencing Facebook","checking your notes","following the thread",
+  "connecting the dots","reading the full text","comparing 2014 to now","almost there"];
 let thinkTimer=null;
 function startThinking(){
   thinking=true;
   answerEl.classList.remove("show");atext.innerHTML="";asrcs.innerHTML="";  // clear old Q&A
+  mode="idle";nodes=[];edges=[];pulses=[];   // the constellation takes the stage
   hint.style.opacity=0;
   loading.classList.add("show");
   let i=0;loading.textContent=THINK_LINES[0];
-  thinkTimer=setInterval(()=>{loading.textContent=THINK_LINES[++i%THINK_LINES.length];},2200);
+  thinkTimer=setInterval(()=>{loading.textContent=THINK_LINES[++i%THINK_LINES.length];},2400);
 }
 function stopThinking(){
   thinking=false;
@@ -380,7 +447,7 @@ async function search(){
   if(!q)return;
   queryLabel=q;
   document.getElementById("panel").classList.remove("open");
-  startThinking();   // clears the previous answer + kicks the brain into overdrive
+  startThinking();   // clears the previous answer; waves sweep the constellation
   try{
     const m=document.querySelector("input[name=mode]:checked").value;
     if(m==="ask"){
