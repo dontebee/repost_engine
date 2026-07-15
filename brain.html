@@ -176,7 +176,6 @@ let W,H,DPR=Math.min(devicePixelRatio||1,2);
 function size(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;
   cv.style.width=W+"px";cv.style.height=H+"px";cx.setTransform(DPR,0,0,DPR,0,0);
   positionLoading();}
-size();addEventListener("resize",size);
 
 const web={nodes:[],edges:[],adj:[]};
 let hoverI=-1,nbrSet=new Set(),dragI=-1,panning=false,px=0,py=0;
@@ -189,6 +188,9 @@ const orbGeo=()=>({cx:W/2,cy:H*0.735,r:Math.max(78,Math.min(W,H)*0.115)});
 function positionLoading(){const o=orbGeo();
   const el=document.getElementById("loading");
   el.style.top=(o.cy+o.r+30)+"px";}
+
+// size() reaches orbGeo/positionLoading, so it only runs once those exist.
+size();addEventListener("resize",size);
 
 function buildWeb(data){
   const rows=data.nodes||[],eds=data.edges||[];
