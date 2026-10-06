@@ -1,5 +1,11 @@
 # GC3 Repost Engine v2
 
+> **Moved (2026-10-06).** The Repost Engine now lives in the Hub at
+> https://intranet.godchasers.church/repost, under the Sermon Desk, on the Hub
+> login. The Outline Builder formats are on the Sermon Desk Build tab. This
+> site redirects both pages there (see `netlify.toml`); only `/brain.html`
+> (Second Brain) is still served from here.
+
 Daily reposting engine for Pastor Donte Banks (PD), Lead Pastor, GodChasers
 Community Church. Surfaces six evergreen picks each morning from a 16-year,
 16,000-post Facebook archive. Live at https://pd-repost-engine-gc3.netlify.app

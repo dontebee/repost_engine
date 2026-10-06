@@ -6,3 +6,32 @@
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# The Repost Engine moved into the Hub (intranet /repost, under the Sermon
+# Desk), and the Outline Builder's five formats live on the Sermon Desk's Build
+# tab. These pages now send people there. 302, not 301, so browsers do not
+# cache it and the move can be undone by deleting these rules.
+# The Second Brain page (/brain.html) is untouched and still served from here.
+[[redirects]]
+  from = "/"
+  to = "https://intranet.godchasers.church/repost"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/index.html"
+  to = "https://intranet.godchasers.church/repost"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/outline.html"
+  to = "https://intranet.godchasers.church/sermon-desk"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/outline"
+  to = "https://intranet.godchasers.church/sermon-desk"
+  status = 302
+  force = true
